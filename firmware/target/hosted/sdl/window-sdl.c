@@ -40,6 +40,63 @@ SDL_Window   *sdlWindow;
 static SDL_Renderer *sdlRenderer;
 static SDL_Surface  *picture_surface;
 
+#ifdef SIMULATOR
+extern bool debug_buttons;
+
+static void draw_circle(float x, float y, float r)
+{
+    SDL_FPoint p[65];
+    for (int i = 0; i <= 64; i++)
+    {
+        float a = i * (float)M_PI / 32;
+        p[i] = (SDL_FPoint){ x + r * SDL_cosf(a), y + r * SDL_sinf(a) };
+    }
+    SDL_RenderDrawLinesF(sdlRenderer, p, 65);
+}
+
+/* --debugbuttons: outline where each button reacts to clicks and taps */
+static void draw_button_bounds(void)
+{
+    Uint8 r, g, b, a;
+    if (!debug_buttons || !background)
+        return;
+    SDL_GetRenderDrawColor(sdlRenderer, &r, &g, &b, &a);
+    SDL_SetRenderDrawBlendMode(sdlRenderer, SDL_BLENDMODE_BLEND);
+
+    SDL_SetRenderDrawColor(sdlRenderer, 255, 40, 40, 220);
+    for (int i = 0; bm[i].button; i++)
+    {
+        if (bm[i].radius < 0)
+        {
+            int w = BM_RECT_W(&bm[i]), h = BM_RECT_H(&bm[i]);
+            SDL_FRect r = { bm[i].x - w / 2.f, bm[i].y - h / 2.f, w, h };
+            SDL_RenderDrawRectF(sdlRenderer, &r);
+        }
+        else
+            draw_circle(bm[i].x, bm[i].y, bm[i].radius);
+    }
+
+#ifdef HAVE_SIM_TOUCHWHEEL
+    /* the ring, and where its quarters (keys[]) meet */
+    SDL_SetRenderDrawColor(sdlRenderer, 40, 130, 255, 220);
+    draw_circle(tw.x, tw.y, tw.inner_radius);
+    draw_circle(tw.x, tw.y, tw.outer_radius);
+    for (int q = 0; q < 4; q++)
+    {
+        float c = SDL_cosf((float)M_PI / 4 + q * (float)M_PI / 2);
+        float s = SDL_sinf((float)M_PI / 4 + q * (float)M_PI / 2);
+        SDL_RenderDrawLineF(sdlRenderer, tw.x + c * tw.inner_radius,
+                            tw.y + s * tw.inner_radius,
+                            tw.x + c * tw.outer_radius,
+                            tw.y + s * tw.outer_radius);
+    }
+#endif
+    SDL_SetRenderDrawColor(sdlRenderer, r, g, b, a);
+}
+#else
+#define draw_button_bounds()
+#endif
+
 /* SDL looks for relative paths in the app's files dir on Android, not in
    this model's dir there (see system_init()) */
 static const char *sim_file(const char *name)
@@ -54,7 +111,7 @@ static const char *sim_file(const char *name)
 #endif
 }
 
-#ifdef HAVE_SIM_TOUCHWHEEL
+#ifdef HAVE_SIM_SKIN_COLOUR
 /* Colour for the device body and centre button; the clickwheel ring and
    the screen keep theirs. Opacity 0 keeps the image as it is. */
 static struct { int r, g, b, opacity; } skin_tint = { 150, 100, 200, 0 };
@@ -116,8 +173,10 @@ static int luminance(Uint8 r, Uint8 g, Uint8 b)
     return (r * 299 + g * 587 + b * 114) / 1000;
 }
 
-/* The ring's light bevel takes the body colour too, or it shows as an
-   outline on dark colours */
+#ifdef HAVE_SIM_TOUCHWHEEL
+/* Tinting the bitmap of a clickwheel iPod, which is told apart by the
+   wheel's geometry. The ring's light bevel takes the body colour too, or
+   it shows as an outline on dark colours */
 #define TINT_BEVEL_INNER 1
 #define TINT_BEVEL_OUTER 2
 
@@ -134,6 +193,7 @@ static float tint_weight(int x, int y)
     float w = d < inner ? inner - d + 0.5f : d - outer + 0.5f;
     return w < 0 ? 0 : w > 1 ? 1 : w;
 }
+#endif /* HAVE_SIM_TOUCHWHEEL */
 
 static void apply_skin_colour(void)
 {
@@ -141,6 +201,7 @@ static void apply_skin_colour(void)
     if (!s)
         return;
 
+#ifdef HAVE_SIM_TOUCHWHEEL
     if (skin_tint.opacity > 0 && tw.outer_radius)
     {
         Uint32 *px = s->pixels;
@@ -179,6 +240,7 @@ static void apply_skin_colour(void)
                                 g + (tg - g) * w, b + (tb - b) * w);
             }
     }
+#endif
 
     if (picture_surface)
         SDL_FreeSurface(picture_surface);
@@ -417,6 +479,7 @@ static bool render_svg_skin(void)
     }
     SDL_Rect lcd = { UI_LCD_POSX, UI_LCD_POSY, SIM_LCD_WIDTH, SIM_LCD_HEIGHT };
     SDL_RenderCopy(sdlRenderer, gui_texture, &lcd, &lcd);
+    draw_button_bounds();
     SDL_RenderPresent(sdlRenderer);
     return true;
 }
@@ -487,7 +550,7 @@ bool sdl_window_change_skin_colour(void)
     return true;
 #endif
 }
-#endif /* HAVE_SIM_TOUCHWHEEL */
+#endif /* HAVE_SIM_SKIN_COLOUR */
 
 static bool new_gui_texture_needed = true;
 static bool window_adjustment_needed;
@@ -671,12 +734,13 @@ void sdl_window_render(void)
         rebuild_gui_texture();
     }
     else
-#ifdef HAVE_SIM_TOUCHWHEEL
+#ifdef HAVE_SIM_SKIN_COLOUR
     if (!render_svg_skin())
 #endif
     {
         SDL_RenderClear(sdlRenderer);
         SDL_RenderCopy(sdlRenderer, gui_texture, NULL, NULL);
+        draw_button_bounds();
         SDL_RenderPresent(sdlRenderer);
     }
 }
@@ -747,7 +811,7 @@ void sdl_window_setup(void)
 
     if (!(picture_surface = SDL_LoadBMP(sim_file("UI256.bmp"))))
         background = false;
-#ifdef HAVE_SIM_TOUCHWHEEL
+#ifdef HAVE_SIM_SKIN_COLOUR
     else
     {
         skin_image = picture_surface;

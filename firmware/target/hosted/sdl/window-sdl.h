@@ -41,7 +41,7 @@ void sdl_window_adjustment_needed(bool destroy_texture);
 void sdl_window_setup(void);
 
 /* Changes the colour of the device body and centre button (simulators with
-   HAVE_SIM_TOUCHWHEEL): the next preset, or on Android a colour picker.
+   HAVE_SIM_SKIN_COLOUR): the next preset, or on Android a colour picker.
    True if the window needs redrawing. */
 bool sdl_window_change_skin_colour(void);
 

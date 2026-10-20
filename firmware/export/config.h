@@ -1531,9 +1531,13 @@ Lyre prototype 1 */
 #define WANT_SWVOL_32
 #endif
 
-/* The simulator on Android vibrates the phone for the clickwheel */
-#if defined(SIMULATOR) && defined(__ANDROID__) && defined(HAVE_SCROLLWHEEL)
+/* The simulator running on Android */
+#if defined(SIMULATOR) && defined(__ANDROID__)
+#define HAVE_SIM_ANDROID
+/* it vibrates the phone for the clickwheel */
+#ifdef HAVE_SCROLLWHEEL
 #define HAVE_SIM_HAPTICS
+#endif
 #endif
 
 #endif /* __CONFIG_H__ */

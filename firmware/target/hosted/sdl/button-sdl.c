@@ -142,8 +142,11 @@ static void scrollwheel_event(int x, int y)
 }
 #endif
 
-#ifdef HAVE_SIM_HAPTICS
+#ifdef HAVE_SIM_ANDROID
 #include <jni.h>
+#endif
+
+#ifdef HAVE_SIM_HAPTICS
 
 /* Vibrates the phone like the clickwheel's clicker, see
    RockboxSimActivity.haptic() */
@@ -183,6 +186,11 @@ static void haptic(int kind)
         (*env)->ExceptionClear(env);
 }
 
+#else
+#define haptic(kind)
+#endif /* HAVE_SIM_HAPTICS */
+
+#ifdef HAVE_SIM_ANDROID
 /* Settings > Android > Model (apps/menus/main_menu.c), see
    RockboxSimActivity.modelList() and switchModel() */
 int sim_android_models(char *buf, size_t size)
@@ -248,9 +256,7 @@ Java_org_rockbox_sim_RockboxSimActivity_nativeShutDown(JNIEnv *env, jclass cls)
     (void)cls;
     sys_poweroff();
 }
-#else
-#define haptic(kind)
-#endif /* HAVE_SIM_HAPTICS */
+#endif /* HAVE_SIM_ANDROID */
 
 #ifdef HAVE_SIM_TOUCHWHEEL
 /* Emulates the touch-sensitive clickwheel with the mouse or a touchscreen.
@@ -627,12 +633,8 @@ static bool event_handler(SDL_Event *event)
             int i;
             for (i = 0; bm[i].button; i++)
             {
-                int xd = (x-bm[i].x)*(x-bm[i].x);
-                int yd = (y-bm[i].y)*(y-bm[i].y);
-                /* check distance from center of button < radius */
-                if ( xd + yd < bm[i].radius*bm[i].radius ) {
+                if (bm_contains(&bm[i], x, y))
                     break;
-                }
             }
 
             if (bm[i].button
@@ -828,7 +830,7 @@ static void button_event(int key, bool pressed)
 #endif
         }
         return;
-#ifdef HAVE_SIM_TOUCHWHEEL
+#ifdef HAVE_SIM_SKIN_COLOUR
     case SIM_SKIN_COLOUR_KEY:
         if (!pressed)
         {

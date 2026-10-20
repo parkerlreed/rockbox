@@ -69,7 +69,24 @@ int key_to_button(int keyboard_button)
     return new_btn;
 }
 
-#ifdef SANSA_CLIPZIP
+#if defined(SANSA_CLIPZIP) && defined(HAVE_SIM_ANDROID)
+/* The buttons of skins/sansaclipzip.svg, as rectangles around x, y */
+struct button_map bm[] = {
+    { SDLK_KP_5,        80, 210, BM_RECT(50, 16), "Select" }, /* the pill */
+    { SDLK_KP_MULTIPLY, 31, 170, BM_RECT(26, 24), "Home" },   /* the tab */
+    /* the rest of the plate around the pill */
+    { SDLK_KP_8,        80, 187, BM_RECT(50, 30), "Play" },
+    { SDLK_KP_2,        80, 232, BM_RECT(50, 28), "Menu" },
+    { SDLK_KP_4,        32, 211, BM_RECT(46, 50), "Left" },
+    { SDLK_KP_6,       128, 211, BM_RECT(46, 50), "Right" },
+    /* the side buttons, and a finger's width in from the edge */
+    { SDLK_ESCAPE,      81,   8, BM_RECT(34, 16), "Power" },
+    { SDLK_PAGEUP,       8,  70, BM_RECT(16, 28), "Vol+" },
+    { SDLK_PAGEDOWN,     8, 130, BM_RECT(16, 28), "Vol-" },
+
+    { 0, 0, 0, 0, "None" }
+};
+#elif defined(SANSA_CLIPZIP)
 struct button_map bm[] = {
     { SDLK_KP_MULTIPLY,  31, 171,  12, "Home" },
     { SDLK_KP_5,          81, 211,  10, "Select" },
