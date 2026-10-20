@@ -138,7 +138,16 @@ public class RockboxSimActivity extends SDLActivity
     @Override
     protected String[] getArguments()
     {
-        return new String[] { "--root", root.getPath() };
+        /* built with SIM_DEBUG_BUTTONS=1 (build-apk.sh) */
+        try
+        {
+            getAssets().open("debug_buttons").close();
+            return new String[] { "--root", root.getPath(), "--debugbuttons" };
+        }
+        catch (IOException e)
+        {
+            return new String[] { "--root", root.getPath() };
+        }
     }
 
     private SharedPreferences prefs()

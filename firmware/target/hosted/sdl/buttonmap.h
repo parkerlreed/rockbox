@@ -24,12 +24,28 @@
 /* Run sim with --mapping to get coordinates      */
 /* or --debugbuttons to check                     */
 /* The First matching button is returned          */
+/* A radius of BM_RECT(w, h) makes the button a w x h rectangle   */
+/* centred on x, y instead                                         */
 struct button_map {
     int button, x, y, radius;
     char *description;
 };
 
+#define BM_RECT(w, h)   (-((w) << 12 | (h)))
+#define BM_RECT_W(b)    (-(b)->radius >> 12)
+#define BM_RECT_H(b)    (-(b)->radius & 0xfff)
+
 extern struct button_map bm[];
+
+/* Whether x, y is on the button */
+static inline int bm_contains(const struct button_map *b, int x, int y)
+{
+    if (b->radius < 0)
+        return 2 * (x - b->x) >= -BM_RECT_W(b) && 2 * (x - b->x) < BM_RECT_W(b) &&
+               2 * (y - b->y) >= -BM_RECT_H(b) && 2 * (y - b->y) < BM_RECT_H(b);
+    return (x - b->x) * (x - b->x) + (y - b->y) * (y - b->y) <
+           b->radius * b->radius;
+}
 
 int xy2button( int x, int y);
 
@@ -45,8 +61,14 @@ struct touchwheel_map {
 };
 
 extern const struct touchwheel_map tw;
+#endif
 
-/* Simulated key that cycles the device colour, see bm[] */
+#if defined(HAVE_SIM_TOUCHWHEEL) || defined(HAVE_SIM_ANDROID)
+/* The device's colour can be changed: through presets on a clickwheel
+   iPod's bitmap, or with a colour picker and an SVG device image on
+   Android (window-sdl.c) */
+#define HAVE_SIM_SKIN_COLOUR
+/* Simulated key that changes the device colour, see bm[] */
 #define SIM_SKIN_COLOUR_KEY SDLK_F2
 #endif
 

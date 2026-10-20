@@ -505,7 +505,7 @@ static int main_menu_config(void)
 MENUITEM_FUNCTION(main_menu_config_item, 0, ID2P(LANG_MAIN_MENU),
                   main_menu_config, NULL, Icon_Rockbox);
 
-#ifdef HAVE_SIM_HAPTICS
+#ifdef HAVE_SIM_ANDROID
 /* Settings for the simulator running on Android */
 
 /* the models in the APK: "name\ttitle\n" lines */
@@ -582,10 +582,16 @@ static int android_model(void)
 }
 MENUITEM_FUNCTION(android_model_item, 0, ID2P(LANG_ANDROID_MODEL),
                   android_model, NULL, Icon_NOICON);
+#ifdef HAVE_SIM_HAPTICS
 MENUITEM_SETTING(clickwheel_vibration, &global_settings.clickwheel_vibration,
                  NULL);
+#endif
 MAKE_MENU(android_menu, ID2P(LANG_ANDROID), 0, Icon_System_menu,
-          &android_model_item, &clickwheel_vibration);
+          &android_model_item,
+#ifdef HAVE_SIM_HAPTICS
+          &clickwheel_vibration,
+#endif
+          );
 #endif
 
 /***********************************/
@@ -603,7 +609,7 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         &timedate_item,
 #endif
         &main_menu_config_item,
-#ifdef HAVE_SIM_HAPTICS
+#ifdef HAVE_SIM_ANDROID
         &android_menu,
 #endif
         &manage_settings,

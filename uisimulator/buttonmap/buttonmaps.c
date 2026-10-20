@@ -29,8 +29,7 @@ int xy2button( int x, int y)
     extern bool debug_buttons;
     
     for ( i = 0; bm[i].button; i++ )
-        /* check distance from center of button < radius */
-        if ( ( (x-bm[i].x)*(x-bm[i].x) ) + ( ( y-bm[i].y)*(y-bm[i].y) ) < bm[i].radius*bm[i].radius ) {
+        if ( bm_contains(&bm[i], x, y) ) {
             if (debug_buttons) 
                 printf("Button: %s\n", bm[i].description );
             return bm[i].button;

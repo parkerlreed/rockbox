@@ -55,12 +55,13 @@ echo "Native libraries"
 # comes first and is the default; the others are configured and built in
 # models/<model> here.
 PRIMARY=$(makevar MODELNAME)
-MODELS="$PRIMARY $(echo ${ANDROID_SIM_MODELS:-ipodvideo ipodmini2g} | tr ' ' '\n' | grep -vx "$PRIMARY" | tr '\n' ' ')"
+MODELS="$PRIMARY $(echo ${ANDROID_SIM_MODELS:-ipodvideo ipodmini2g sansaclipzip} | tr ' ' '\n' | grep -vx "$PRIMARY" | tr '\n' ' ')"
 
 model_title() {
     case $1 in
         ipodvideo)  echo "iPod Video" ;;
         ipodmini2g) echo "iPod mini 2G" ;;
+        sansaclipzip) echo "Sansa Clip Zip" ;;
         *)          echo "$1" ;;
     esac
 }
@@ -121,6 +122,10 @@ done
 
 echo "Assets"
 (cd "$OUT/files" && zip -qr "$OUT/assets/files.zip" models)
+# SIM_DEBUG_BUTTONS=1 outlines the buttons' touch areas (--debugbuttons)
+if [ -n "$SIM_DEBUG_BUTTONS" ]; then
+    : > "$OUT/assets/debug_buttons"
+fi
 
 echo "Java"
 javac -nowarn --release 11 -Xlint:-options -classpath "$ANDROID_JAR" -d "$OUT/classes" \
