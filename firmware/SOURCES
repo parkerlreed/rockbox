@@ -90,6 +90,9 @@ target/hosted/sdl/filesystem-sdl.c
 #endif
 target/hosted/sdl/load_code-sdl.c
 target/hosted/sdl/timer-sdl.c
+#ifdef HAVE_SIM_CAMERA
+target/hosted/sdl/camera-sdl.c
+#endif
 #ifdef HAVE_TOUCHSCREEN
 target/hosted/sdl/key_to_touch-sdl.c
 #endif

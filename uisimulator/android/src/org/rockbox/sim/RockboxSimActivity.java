@@ -22,6 +22,7 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.media.MediaScannerConnection;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -54,6 +55,7 @@ public class RockboxSimActivity extends SDLActivity
     private static final String TAG = "RockboxSim";
     private static final String PREF_MODEL = "model";
     private static Vibrator vibrator;
+    private static RockboxSimActivity self;
     private File root;
     private File rockboxHome;
     /* the models in the APK (assets/models.txt): names and titles */
@@ -80,6 +82,7 @@ public class RockboxSimActivity extends SDLActivity
             Log.e(TAG, "unpacking the simdisk failed", e);
         }
         super.onCreate(savedInstanceState);
+        self = this;
         setUpVibrator();
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(
                 Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
@@ -91,6 +94,7 @@ public class RockboxSimActivity extends SDLActivity
     @Override
     protected void onDestroy()
     {
+        SimCamera.stop();
         stopService(new Intent(this, RockboxSimService.class));
         super.onDestroy();
     }
@@ -128,6 +132,40 @@ public class RockboxSimActivity extends SDLActivity
     {
         runOnUiThread(() ->
             SkinColourPicker.show(this, r, g, b, opacity, hasOpacity));
+    }
+
+    /* Called from the simulator, the camera plugin (camera-sdl.c) */
+    static void cameraStart(boolean front)
+    {
+        if (self != null)
+            SimCamera.start(self, front);
+    }
+
+    static void cameraStop(boolean unused)
+    {
+        SimCamera.stop();
+    }
+
+    /* Called from the camera plugin with a photo's path, so it shows up
+       in the gallery straight away */
+    static void mediaScan(String path)
+    {
+        RockboxSimActivity a = self;
+        if (a == null)
+            return;
+        MediaScannerConnection.scanFile(a, new String[] { path },
+                                        new String[] { "image/png" }, null);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+            String[] permissions, int[] grantResults)
+    {
+        if (requestCode == SimCamera.PERMISSION_REQUEST)
+            SimCamera.permissionResult(this, grantResults.length > 0 &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED);
+        else
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
     @Override
