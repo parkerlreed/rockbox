@@ -55,13 +55,14 @@ echo "Native libraries"
 # comes first and is the default; the others are configured and built in
 # models/<model> here.
 PRIMARY=$(makevar MODELNAME)
-MODELS="$PRIMARY $(echo ${ANDROID_SIM_MODELS:-ipodvideo ipodmini2g sansaclipzip} | tr ' ' '\n' | grep -vx "$PRIMARY" | tr '\n' ' ')"
+MODELS="$PRIMARY $(echo ${ANDROID_SIM_MODELS:-ipodvideo ipodmini2g sansaclipzip gigabeatfx} | tr ' ' '\n' | grep -vx "$PRIMARY" | tr '\n' ' ')"
 
 model_title() {
     case $1 in
         ipodvideo)  echo "iPod Video" ;;
         ipodmini2g) echo "iPod mini 2G" ;;
         sansaclipzip) echo "Sansa Clip Zip" ;;
+        gigabeatfx) echo "Gigabeat F/X" ;;
         *)          echo "$1" ;;
     esac
 }

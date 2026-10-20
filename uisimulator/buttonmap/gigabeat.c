@@ -73,6 +73,26 @@ int key_to_button(int keyboard_button)
     return new_btn;
 }
 
+#ifdef HAVE_SIM_ANDROID
+/* The buttons of uisimulator/skins/gigabeatfx.svg, as rectangles around
+   x, y */
+struct button_map bm[] = {
+    /* the pad, wider than the cross for fingers; Select comes first so it
+       takes the middle, reaching a little into each arm */
+    { SDLK_KP_5,        168, 537, BM_RECT(56, 56), "Select" },
+    { SDLK_KP_8,        168, 479, BM_RECT(64, 116), "Up" },
+    { SDLK_KP_2,        168, 595, BM_RECT(64, 116), "Down" },
+    { SDLK_KP_4,        111, 537, BM_RECT(114, 64), "Left" },
+    { SDLK_KP_6,        225, 537, BM_RECT(114, 64), "Right" },
+    /* the side */
+    { SDLK_KP_PLUS,     365, 187, BM_RECT(54, 52), "Power" },
+    { SDLK_KP_PERIOD,   365, 270, BM_RECT(54, 52), "Menu" },
+    { SDLK_KP_9,        365, 356, BM_RECT(54, 66), "Vol Up" },
+    { SDLK_KP_3,        365, 422, BM_RECT(54, 66), "Vol Down" },
+    { SDLK_KP_ENTER,    365, 520, BM_RECT(54, 52), "A" },
+    { 0, 0, 0, 0, "None" }
+};
+#else
 struct button_map bm[] = {
     { SDLK_KP_PLUS,    361, 187, 22, "Power" },
     { SDLK_KP_PERIOD,  361, 270, 17, "Menu" },
@@ -86,3 +106,4 @@ struct button_map bm[] = {
     { SDLK_KP_2,        169, 617, 28, "Down" },
     { 0, 0, 0, 0, "None" }
 };
+#endif

@@ -2,9 +2,9 @@ This folder packages the Rockbox simulator as an Android app: the device
 skin, buttons and clickwheel as on the desktop, running on a phone. It is
 unrelated to the older Rockbox-as-an-application port in /android.
 
-The APK holds several models, the iPod Video, the iPod mini 2G and the
-Sansa Clip Zip; the user switches between them in Settings > Android >
-Model, which restarts the app. Each model's simulator is built as libmain_<model>.so and started by
+The APK holds several models, the iPod Video, the iPod mini 2G, the Sansa
+Clip Zip and the Toshiba Gigabeat F/X; the user switches between them in
+Settings > Android > Model, which restarts the app. Each model's simulator is built as libmain_<model>.so and started by
 SDL2's SDLActivity. Codecs and plugins ship in the APK as libraries next to
 it, named after the model, because Android won't run code from app storage
 (see uisimulator/common/load_code-sim.c). build-apk.sh builds the models
