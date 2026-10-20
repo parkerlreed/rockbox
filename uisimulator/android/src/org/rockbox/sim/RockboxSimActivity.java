@@ -124,9 +124,10 @@ public class RockboxSimActivity extends SDLActivity
 
     /* Called from the simulator when the hidden colour spot is tapped */
     public void showSkinColourPicker(final int r, final int g, final int b,
-                                     final int opacity)
+                                     final int opacity, final boolean hasOpacity)
     {
-        runOnUiThread(() -> SkinColourPicker.show(this, r, g, b, opacity));
+        runOnUiThread(() ->
+            SkinColourPicker.show(this, r, g, b, opacity, hasOpacity));
     }
 
     @Override
