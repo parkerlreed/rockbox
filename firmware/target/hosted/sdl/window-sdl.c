@@ -523,11 +523,12 @@ static void show_skin_colour_picker(void)
 
     jclass cls = (*env)->GetObjectClass(env, activity);
     jmethodID show = (*env)->GetMethodID(env, cls, "showSkinColourPicker",
-                                         "(IIII)V");
-    /* the SVG has no opacity: -1 hides it */
+                                         "(IIIIZ)V");
+    /* the SVG has no opacity slider, but opacity 0 still means plain */
     if (show)
         (*env)->CallVoidMethod(env, activity, show, skin_tint.r, skin_tint.g,
-                               skin_tint.b, svg_skin ? -1 : skin_tint.opacity);
+                               skin_tint.b, skin_tint.opacity,
+                               (jboolean)!svg_skin);
     if ((*env)->ExceptionCheck(env))
         (*env)->ExceptionClear(env);
     (*env)->DeleteLocalRef(env, cls);

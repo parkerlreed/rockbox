@@ -40,10 +40,11 @@ class SkinColourPicker
     private static final int HUE = 0, SAT = 1, VAL = 2, OPACITY = 3;
     private static final int DEFAULT_OPACITY = 80;
 
-    /* opacity -1: the device image has none (SVG), so no slider */
-    static void show(Activity activity, int r, int g, int b, int opacity)
+    /* hasOpacity false: the device image (SVG) has no opacity to set, so
+     * there is no slider; Cancel still restores the opacity as it was */
+    static void show(Activity activity, int r, int g, int b, int opacity,
+                     final boolean hasOpacity)
     {
-        final boolean hasOpacity = opacity >= 0;
         final int[] old = { r, g, b, opacity };
         float[] hsv = new float[3];
         Color.RGBToHSV(r, g, b, hsv);
