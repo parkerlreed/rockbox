@@ -303,6 +303,22 @@ int sim_get_os_path(char *buffer, const char *path, size_t bufsize)
         default:
             level++;
 
+        #ifdef __ANDROID__
+            /* The root is all of shared storage; keep Rockbox's own files
+               out of the way in Rockbox/.rockbox */
+            if (level == 1 && len == sizeof (ROCKBOX_DIR) - 2 &&
+                !strncmp(p, &ROCKBOX_DIR[1], len))
+            {
+                size = path_append(buffer, PA_SEP_HARD, "Rockbox", bufsize);
+                if (size >= bufsize)
+                {
+                    errno = ENAMETOOLONG;
+                    return -1;
+                }
+                ADVBUF(size);
+            }
+        #endif
+
         #ifdef HAVE_MULTIVOLUME
             if (level != 1)
                 break; /* Volume spec only valid @ root level */

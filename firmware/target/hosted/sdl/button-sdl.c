@@ -21,6 +21,8 @@
 #include <math.h>
 #include <stdlib.h>         /* EXIT_SUCCESS */
 #include <stdio.h>
+#include <stdint.h>
+#include <limits.h>
 #include "sim-ui-defines.h"
 #ifdef HAVE_REMOTE_LCD
 #include "lcd-remote.h"
@@ -138,6 +140,186 @@ static void scrollwheel_event(int x, int y)
     (void)x;
 }
 #endif
+
+#ifdef HAVE_SIM_TOUCHWHEEL
+/* Emulates the touch-sensitive clickwheel with the mouse or a touchscreen.
+ * Scrolling follows the clickwheel driver in
+ * firmware/target/arm/ipod/button-clickwheel.c */
+#define TW_CLICKS_PER_ROTATION 96
+#define TW_SENSITIVITY          4   /* clicks per scroll step */
+#define TW_HOLD_MS            250   /* finger held still this long = click */
+#define TW_TAP_MS              50   /* how long a tap keeps the button down */
+#define TW_REPEAT_MS          250
+#define TW_FAST_OFF_MS        250
+
+enum { TW_TIMER_HOLD, TW_TIMER_TAP_RELEASE };
+
+static Uint32 tw_event_type = (Uint32)-1;
+static enum { TW_IDLE, TW_TOUCHED, TW_SCROLLING, TW_PRESSED } tw_state;
+static int tw_key;          /* key under the finger on touch down */
+static int tw_tap_key;      /* key held down by a tap, until its timer */
+static int tw_pos;          /* wheel position at the last scroll step */
+static int tw_dir;          /* direction of the last scroll step */
+static Uint32 tw_last_ms;   /* time of the last scroll step */
+static unsigned tw_velocity;
+static unsigned tw_gen;     /* identifies the current touch for timers */
+
+static Uint32 tw_timer_cb(Uint32 interval, void *param)
+{
+    SDL_Event ev;
+    SDL_zero(ev);
+    ev.type = tw_event_type;
+    ev.user.code = (int)(intptr_t)param;
+    /* SDL_RegisterEvents() hands out SDL_USEREVENT, which power_off()
+       also pushes to stop the event loop: tell ours apart */
+    ev.user.data1 = &tw_event_type;
+    SDL_PushEvent(&ev);
+    (void)interval;
+    return 0;
+}
+
+static void tw_start_timer(int kind, Uint32 ms)
+{
+    SDL_AddTimer(ms, tw_timer_cb, (void *)(intptr_t)((tw_gen << 1) | kind));
+}
+
+static int tw_dist2(int x, int y)
+{
+    return (x - tw.x) * (x - tw.x) + (y - tw.y) * (y - tw.y);
+}
+
+static bool tw_on_ring(int x, int y)
+{
+    int d2 = tw_dist2(x, y);
+    return tw.outer_radius && background && !mapping
+        && d2 >= tw.inner_radius * tw.inner_radius
+        && d2 <= tw.outer_radius * tw.outer_radius;
+}
+
+/* 0..95, increasing clockwise as on the real wheel */
+static int tw_position(int x, int y)
+{
+    int pos = lround(atan2(y - tw.y, x - tw.x)
+                     * TW_CLICKS_PER_ROTATION / (2 * M_PI));
+    return (pos + TW_CLICKS_PER_ROTATION) % TW_CLICKS_PER_ROTATION;
+}
+
+static int tw_key_at(int x, int y)
+{
+    int dx = x - tw.x, dy = y - tw.y;
+    if (abs(dy) >= abs(dx))
+        return tw.keys[dy < 0 ? 0 : 2];
+    return tw.keys[dx > 0 ? 1 : 3];
+}
+
+static void tw_release_tap(void)
+{
+    if (tw_tap_key)
+    {
+        button_event(tw_tap_key, false);
+        tw_tap_key = 0;
+    }
+}
+
+static bool touchwheel_down(int x, int y)
+{
+    if (tw_event_type == (Uint32)-1 || !tw_on_ring(x, y))
+        return false;
+
+    tw_release_tap();
+    tw_gen++;
+    tw_state = TW_TOUCHED;
+    tw_key = tw_key_at(x, y);
+    tw_pos = tw_position(x, y);
+    tw_start_timer(TW_TIMER_HOLD, TW_HOLD_MS);
+    return true;
+}
+
+static void touchwheel_motion(int x, int y, Uint32 ms)
+{
+    if (tw_state != TW_TOUCHED && tw_state != TW_SCROLLING)
+        return;
+    /* the angle is meaningless near the centre */
+    if (tw_dist2(x, y) * 4 < tw.inner_radius * tw.inner_radius)
+        return;
+
+    int pos = tw_position(x, y);
+    int delta = pos - tw_pos;
+    if (delta < -TW_CLICKS_PER_ROTATION/2)
+        delta += TW_CLICKS_PER_ROTATION;
+    else if (delta > TW_CLICKS_PER_ROTATION/2)
+        delta -= TW_CLICKS_PER_ROTATION;
+    if (abs(delta) < TW_SENSITIVITY)
+        return;
+
+    int dir = delta > 0 ? BUTTON_SCROLL_FWD : BUTTON_SCROLL_BACK;
+    int repeat = 0;
+    Uint32 dt = ms - tw_last_ms;
+
+    /* degrees/sec, smoothed like the clickwheel driver */
+    unsigned v = dt ? (1000u * abs(delta) / dt) * 360 / TW_CLICKS_PER_ROTATION
+                    : 0;
+    tw_velocity = (15 * tw_velocity + v) / 16;
+    if (tw_velocity > 0xffffff)
+        tw_velocity = 0xffffff;
+
+    /* direction reversals and pauses reset acceleration */
+    if (tw_state != TW_SCROLLING || dir != tw_dir || dt > TW_FAST_OFF_MS)
+        tw_velocity = 0;
+    else if (dt < TW_REPEAT_MS)
+        repeat = BUTTON_REPEAT;
+
+    tw_state = TW_SCROLLING;
+    tw_dir = dir;
+    tw_pos = pos;
+    tw_last_ms = ms;
+
+#ifdef HAVE_BACKLIGHT
+    backlight_on();
+#endif
+    reset_poweroff_timer();
+    if (button_queue_empty())
+        button_queue_post(dir | repeat, (1u << 31) | (1 << 24) | tw_velocity);
+}
+
+static bool touchwheel_up(void)
+{
+    switch (tw_state)
+    {
+    case TW_IDLE:
+        return false;
+    case TW_TOUCHED:
+        /* quick tap: click briefly, long enough to pass debouncing */
+        tw_tap_key = tw_key;
+        button_event(tw_tap_key, true);
+        tw_start_timer(TW_TIMER_TAP_RELEASE, TW_TAP_MS);
+        break;
+    case TW_PRESSED:
+        button_event(tw_key, false);
+        break;
+    case TW_SCROLLING:
+        break;
+    }
+    tw_state = TW_IDLE;
+    return true;
+}
+
+static void touchwheel_timer(int code)
+{
+    if ((unsigned)code >> 1 != (tw_gen & (UINT_MAX >> 1)))
+        return; /* from an earlier touch */
+
+    if ((code & 1) == TW_TIMER_TAP_RELEASE)
+        tw_release_tap();
+    else if (tw_state == TW_TOUCHED)
+    {
+        /* finger held still: click and hold until it lifts */
+        tw_state = TW_PRESSED;
+        button_event(tw_key, true);
+    }
+}
+#endif /* HAVE_SIM_TOUCHWHEEL */
+
 static void mouse_event(SDL_MouseButtonEvent *event, bool button_up)
 {
 #define SQUARE(x) ((x)*(x))
@@ -155,6 +337,10 @@ static void mouse_event(SDL_MouseButtonEvent *event, bool button_up)
             break;
         /* The scrollwheel button up events are ignored as they are queued immediately */
         case SDL_BUTTON_LEFT:
+#ifdef HAVE_SIM_TOUCHWHEEL
+            if (touchwheel_up())
+                break;
+#endif
             if ( mapping && background ) {
                 printf("    { SDLK_,     %d, %d, %d, \"\" },\n", x, y,
                 (int)sqrt( SQUARE(x-(int)event->x) + SQUARE(y-(int)event->y))
@@ -184,6 +370,10 @@ static void mouse_event(SDL_MouseButtonEvent *event, bool button_up)
                 x = event->x;
                 y = event->y;
             }
+#ifdef HAVE_SIM_TOUCHWHEEL
+            if (touchwheel_down(event->x, event->y))
+                break;
+#endif
 #ifdef SIMULATOR
             if ( background ) {
                 xybutton = xy2button( event->x, event->y );
@@ -244,6 +434,14 @@ static bool event_handler(SDL_Event *event)
     SDLKey ev_key;
 #endif
 
+#ifdef HAVE_SIM_TOUCHWHEEL
+    if (event->type == tw_event_type && event->user.data1 == &tw_event_type)
+    {
+        touchwheel_timer(event->user.code);
+        return false;
+    }
+#endif
+
     switch(event->type)
     {
 #if SDL_MAJOR_VERSION > 1
@@ -280,6 +478,19 @@ static bool event_handler(SDL_Event *event)
         }
 #endif
         break;
+#ifdef __ANDROID__
+    case SDL_APP_DIDENTERBACKGROUND:
+        sdl_window_set_visible(false);
+        break;
+    case SDL_APP_DIDENTERFOREGROUND:
+        SDL_LockMutex(window_mutex);
+        sdl_window_set_visible(true);
+        sdl_window_adjustment_needed(false);
+        SDL_UnlockMutex(window_mutex);
+        if (!button_queue_full())
+            button_queue_post(SDLK_UNKNOWN, 0); /* redraw on main thread */
+        break;
+#endif
     case SDL_KEYDOWN:
     case SDL_KEYUP:
         ev_key = event->key.keysym.sym;
@@ -310,7 +521,11 @@ static bool event_handler(SDL_Event *event)
                 }
             }
 
-            if (bm[i].button)
+            if (bm[i].button
+#ifdef HAVE_SIM_TOUCHWHEEL
+                || tw_on_ring(x, y)
+#endif
+               )
             {
                 if (!cursor_isfocus)
                 {
@@ -326,6 +541,10 @@ static bool event_handler(SDL_Event *event)
 
             next_check = event->motion.timestamp + 10; /* ms */
         }
+#endif
+#ifdef HAVE_SIM_TOUCHWHEEL
+        touchwheel_motion(event->motion.x, event->motion.y,
+                          event->motion.timestamp);
 #endif
 #ifdef HAVE_TOUCHSCREEN
         if (event->motion.state & SDL_BUTTON(1))
@@ -495,6 +714,20 @@ static void button_event(int key, bool pressed)
 #endif
         }
         return;
+#ifdef HAVE_SIM_TOUCHWHEEL
+    case SIM_SKIN_COLOUR_KEY:
+        if (!pressed)
+        {
+            SDL_LockMutex(window_mutex);
+            sdl_window_cycle_skin_colour();
+            sdl_window_adjustment_needed(true);
+            SDL_UnlockMutex(window_mutex);
+#if !defined(__WIN32) && !defined (__APPLE__)
+            button_queue_post(SDLK_UNKNOWN, 0); /* update window on main thread */
+#endif
+        }
+        return;
+#endif
     case SDLK_0:
         display_zoom = 0.5;
     case SDLK_1:
@@ -695,5 +928,9 @@ void button_init_device(void)
         sdl_focus_cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
     if (!sdl_arrow_cursor)
         sdl_arrow_cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+#endif
+#ifdef HAVE_SIM_TOUCHWHEEL
+    if (tw_event_type == (Uint32)-1)
+        tw_event_type = SDL_RegisterEvents(1);
 #endif
 }

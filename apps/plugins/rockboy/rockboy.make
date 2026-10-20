@@ -35,7 +35,7 @@ $(ROCKBOY_OBJDIR)/rockboy.ovl: $(ROCKBOY_OBJ) $(ROCKBOY_OUTLDS)
 	$(SILENT)$(CC) $(PLUGINFLAGS) -o $(basename $@).elf \
 		$(filter %.o, $^) \
 		$(filter %.a, $+) \
-		-lgcc $(ROCKBOY_OVLFLAGS)
+		$(LIBGCC) $(ROCKBOY_OVLFLAGS)
 	$(call PRINTS,LD $(@F))$(call objcopy_plugin,$(basename $@).elf,$@)
 
 # special rule to build with devkitarm gcc

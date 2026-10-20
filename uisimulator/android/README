@@ -1,0 +1,45 @@
+This folder packages the Rockbox simulator as an Android app: the device
+skin, buttons and clickwheel as on the desktop, running on a phone. It is
+unrelated to the older Rockbox-as-an-application port in /android.
+
+The simulator is built as libmain.so and started by SDL2's SDLActivity.
+Codecs and plugins ship in the APK as libraries next to it, because Android
+won't run code from app storage (see uisimulator/common/load_code-sim.c).
+The simulated disk is the phone's shared storage (/sdcard), so the app asks
+for "All files access" on first start. Rockbox's own files (.rockbox) are
+kept in /sdcard/Rockbox/.rockbox instead of at the root (see
+uisimulator/common/filesystem-sim.c), unpacked there on first run and after
+updates.
+
+Only arm64 (aarch64) is supported.
+
+* Prerequisites
+
+- Android SDK with build-tools and platforms;android-35
+- Android NDK r27 or later
+- A JDK
+- SDL2 source (2.32 or later), built and installed for Android:
+
+    cmake -S SDL2-2.32.10 -B sdl2-android -G Ninja \
+        -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_PATH/build/cmake/android.toolchain.cmake \
+        -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=26 -DCMAKE_BUILD_TYPE=Release \
+        -DSDL_STATIC=OFF -DSDL_TEST=OFF -DCMAKE_INSTALL_PREFIX=$PWD/sdl2-android/prefix
+    cmake --build sdl2-android && cmake --install sdl2-android
+
+* Build instructions
+
+    export ANDROID_SDK_PATH=~/Android/Sdk
+    export ANDROID_NDK_PATH=~/Android/Sdk/ndk/<version>
+    export ANDROID_SDL2_PREFIX=/path/to/sdl2-android/prefix
+    export ANDROID_SDL2_SOURCE=/path/to/SDL2-2.32.10
+
+    mkdir build-android && cd build-android
+    ../tools/configure --target=ipodvideo --type=s --android-sim
+    make && make install
+    ../uisimulator/android/build-apk.sh
+    adb install -r rockbox-sim.apk
+
+The simulator's output is written to stdout.txt in the app's private
+files directory:
+
+    adb shell run-as org.rockbox.sim cat files/stdout.txt

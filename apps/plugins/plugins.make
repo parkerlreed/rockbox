@@ -175,7 +175,7 @@ $(BUILDDIR)/%.rock:
 	$(call PRINTS,LD $(@F))$(CC) $(PLUGINFLAGS) -o $(BUILDDIR)/$*.elf \
 		$(filter %.o, $^) \
 		$(filter %.a, $+) \
-		-lgcc $(PLUGINLDFLAGS)
+		$(LIBGCC) $(PLUGINLDFLAGS)
 	$(SILENT)$(call objcopy_plugin,$(BUILDDIR)/$*.elf,$@)
 
 $(BUILDDIR)/apps/plugins/%.lua: $(ROOTDIR)/apps/plugins/%.lua
@@ -185,4 +185,4 @@ $(BUILDDIR)/%.refmap: $(APPSDIR)/plugin.h $(OVERLAYREF_LDS) $(PLUGIN_LIBS) $(PLU
 	$(call PRINTS,LD $(@F))$(CC) $(PLUGINFLAGS) -o $(basename $@).refelf \
 		$(filter %.o, $^) \
 		$(filter %.a, $+) \
-		-lgcc $(OVERLAYLDFLAGS)
+		$(LIBGCC) $(OVERLAYLDFLAGS)

@@ -18,8 +18,10 @@
  ****************************************************************************/
 
 #include <SDL.h>
+#include <stdio.h>
 #include "sim-ui-defines.h"
 #include "window-sdl.h"
+#include "buttonmap.h"
 #include "lcd-sdl.h"
 #include "misc.h"
 #include "panic.h"
@@ -37,6 +39,127 @@ SDL_mutex *window_mutex;
 SDL_Window   *sdlWindow;
 static SDL_Renderer *sdlRenderer;
 static SDL_Surface  *picture_surface;
+
+#ifdef HAVE_SIM_TOUCHWHEEL
+/* Colours for the device body and centre button; the clickwheel ring and
+   the screen keep theirs. The first keeps the image as it is. */
+static const struct { Uint8 r, g, b; } skin_colours[] = {
+    {   0,   0,   0 }, /* original */
+    {  36,  36,  40 }, /* black */
+    { 196, 200, 206 }, /* silver */
+    { 242, 160, 190 }, /* pink */
+    { 120, 170, 230 }, /* blue */
+    { 150, 210, 120 }, /* green */
+    { 200,  30,  40 }, /* red */
+};
+#define SKIN_COLOUR_FILE "skincolour.txt"
+static int skin_colour;
+static SDL_Surface *skin_image; /* as loaded, picture_surface is tinted */
+
+static int luminance(Uint8 r, Uint8 g, Uint8 b)
+{
+    return (r * 299 + g * 587 + b * 114) / 1000;
+}
+
+/* The ring's light bevel takes the body colour too, or it shows as an
+   outline on dark colours */
+#define TINT_BEVEL_INNER 1
+#define TINT_BEVEL_OUTER 2
+
+/* Keep some of the original skin showing through the colour */
+#define TINT_STRENGTH 0.8f
+
+/* How much of the pixel belongs to the body or centre button: 0 on the
+   ring and the screen, blended across the ring's edges */
+static float tint_weight(int x, int y)
+{
+    const float inner = tw.inner_radius + TINT_BEVEL_INNER;
+    const float outer = tw.outer_radius - TINT_BEVEL_OUTER;
+    if (x >= UI_LCD_POSX && x < UI_LCD_POSX + SIM_LCD_WIDTH &&
+        y >= UI_LCD_POSY && y < UI_LCD_POSY + SIM_LCD_HEIGHT)
+        return 0;
+    float d = SDL_sqrtf((x - tw.x) * (x - tw.x) + (y - tw.y) * (y - tw.y));
+    float w = d < inner ? inner - d + 0.5f : d - outer + 0.5f;
+    return w < 0 ? 0 : w > 1 ? 1 : w;
+}
+
+static void apply_skin_colour(void)
+{
+    SDL_Surface *s = SDL_ConvertSurfaceFormat(skin_image, SDL_PIXELFORMAT_RGB888, 0);
+    if (!s)
+        return;
+
+    if (skin_colour && tw.outer_radius)
+    {
+        Uint32 *px = s->pixels;
+        int stride = s->pitch / 4;
+        Uint8 r, g, b;
+
+        /* The body's average brightness maps to the colour itself */
+        long sum = 0, count = 0;
+        for (int y = 0; y < s->h; y++)
+            for (int x = 0; x < s->w; x++)
+            {
+                SDL_GetRGB(px[y * stride + x], s->format, &r, &g, &b);
+                int l = luminance(r, g, b);
+                if (tint_weight(x, y) == 1 && l > 64)
+                {
+                    sum += l;
+                    count++;
+                }
+            }
+        float ref = count ? (float)sum / count : 255;
+
+        for (int y = 0; y < s->h; y++)
+            for (int x = 0; x < s->w; x++)
+            {
+                float w = tint_weight(x, y) * TINT_STRENGTH;
+                if (w == 0)
+                    continue;
+                Uint32 *p = &px[y * stride + x];
+                SDL_GetRGB(*p, s->format, &r, &g, &b);
+                float k = luminance(r, g, b) / ref;
+                float tr = SDL_min(255.f, skin_colours[skin_colour].r * k);
+                float tg = SDL_min(255.f, skin_colours[skin_colour].g * k);
+                float tb = SDL_min(255.f, skin_colours[skin_colour].b * k);
+                *p = SDL_MapRGB(s->format, r + (tr - r) * w,
+                                g + (tg - g) * w, b + (tb - b) * w);
+            }
+    }
+
+    if (picture_surface)
+        SDL_FreeSurface(picture_surface);
+    picture_surface = s;
+}
+
+void sdl_window_cycle_skin_colour(void)
+{
+    if (!skin_image)
+        return;
+    skin_colour = (skin_colour + 1) % (int)SDL_arraysize(skin_colours);
+    apply_skin_colour();
+
+    FILE *f = fopen(SKIN_COLOUR_FILE, "w");
+    if (f)
+    {
+        fprintf(f, "%d\n", skin_colour);
+        fclose(f);
+    }
+}
+
+static void load_skin_colour(void)
+{
+    FILE *f = fopen(SKIN_COLOUR_FILE, "r");
+    if (f)
+    {
+        if (fscanf(f, "%d", &skin_colour) != 1 || skin_colour < 0 ||
+            skin_colour >= (int)SDL_arraysize(skin_colours))
+            skin_colour = 0;
+        fclose(f);
+    }
+    apply_skin_colour();
+}
+#endif /* HAVE_SIM_TOUCHWHEEL */
 
 static bool new_gui_texture_needed = true;
 static bool window_adjustment_needed;
@@ -147,8 +270,33 @@ static void rebuild_gui_texture(void)
 #endif
 }
 
+#ifdef __ANDROID__
+static volatile bool window_hidden = false;
+static volatile bool surface_replaced = false;
+
+void sdl_window_set_visible(bool visible)
+{
+    if (visible)
+        surface_replaced = true;
+    window_hidden = !visible;
+}
+#endif
+
 void sdl_window_render(void)
 {
+#ifdef __ANDROID__
+    if (window_hidden)
+        return;
+    if (surface_replaced)
+    {
+        /* SDL restores the GL context on the event thread, but it is
+           current on this one: rebind it to the new surface */
+        SDL_GLContext context = SDL_GL_GetCurrentContext();
+        surface_replaced = false;
+        SDL_GL_MakeCurrent(sdlWindow, NULL);
+        SDL_GL_MakeCurrent(sdlWindow, context);
+    }
+#endif
     if (new_gui_texture_needed)
     {
         new_gui_texture_needed = false;
@@ -211,9 +359,10 @@ void sdl_window_setup(void)
     int depth = LCD_DEPTH < 8 ? 16 : LCD_DEPTH;
     Uint32 flags = SDL_WINDOW_ALLOW_HIGHDPI;
 
-#if 0
-    /* Fullscreen mode might be desired */
-    flags |= SDL_WINDOW_FULLSCREEN;
+#ifdef __ANDROID__
+    /* Hides the status and navigation bars; resizable lets SDL allow
+       any orientation, honouring the rotation lock */
+    flags |= SDL_WINDOW_FULLSCREEN | SDL_WINDOW_RESIZABLE;
 #else
     if (display_zoom == 1)
         flags |= SDL_WINDOW_RESIZABLE;
@@ -221,6 +370,19 @@ void sdl_window_setup(void)
 
     if (!(picture_surface = SDL_LoadBMP("UI256.bmp")))
         background = false;
+#ifdef HAVE_SIM_TOUCHWHEEL
+    else
+    {
+        skin_image = picture_surface;
+        picture_surface = NULL;
+        load_skin_colour();
+        if (!picture_surface)
+        {
+            picture_surface = skin_image;
+            skin_image = NULL;
+        }
+    }
+#endif
 
     get_window_dimensions(&width, &height);
 

@@ -26,6 +26,7 @@ bindir=
 libdir=
 sharedir=
 sdl_config=sdl2-config
+libgcc="-lgcc" # overridden for toolchains without it
 arm_thumb_boot=
 thread_support="ASSEMBLER_THREADS"
 sysfont="08-Schumacher-Clean"
@@ -311,7 +312,34 @@ simcc () {
  SHARED_LDFLAGS="-shared"
  SHARED_CFLAGS="-fPIC -fvisibility=hidden"
 
- if [ "$win32crosscompile" = "yes" ]; then
+ if [ "$ARG_ANDROID_SIM" = "1" ]; then
+   # The simulator as the native library of an SDL Android app,
+   # see uisimulator/android/README
+   if [ ! -d "$ANDROID_NDK_PATH" ] || [ ! -x "$ANDROID_SDL2_PREFIX/bin/sdl2-config" ]; then
+     echo "ERROR: Set ANDROID_NDK_PATH to an Android NDK (r27 or later) and"
+     echo "ANDROID_SDL2_PREFIX to SDL2 built and installed for Android."
+     exit 1
+   fi
+   echo "Android simulator build"
+   ANDROID_PLATFORM_VERSION=26
+   ndkbin="$ANDROID_NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin"
+   CC="$ndkbin/aarch64-linux-android$ANDROID_PLATFORM_VERSION-clang"
+   CPP="$CC -E"
+   RANLIB="$ndkbin/llvm-ranlib"
+   LD="$ndkbin/ld.lld"
+   AR="$ndkbin/llvm-ar"
+   AS="$CC -c"
+   OC="$ndkbin/llvm-objcopy"
+   GCCOPTS=`echo $GCCOPTS | sed -e s/\ -funit-at-a-time//`
+   GCCOPTS="$GCCOPTS -fPIC -Dmain=SDL_main"
+   # SDLActivity loads the simulator as a library
+   LDOPTS="$LDOPTS -ldl -shared"
+   output="libmain.so"
+   libgcc="" # clang links compiler-rt itself
+   endian="little"
+   ARG_THREAD_SUPPORT=1
+   PATH="$ANDROID_SDL2_PREFIX/bin:$PATH"
+ elif [ "$win32crosscompile" = "yes" ]; then
    # We are crosscompiling
    # add cross-compiler option(s)
    GCCOPTS="$GCCOPTS -Wno-format"
@@ -1565,6 +1593,7 @@ help() {
                       Enable -fstack-protector-MODE option. With no MODE,
                       enables the normal -fstack-protector option.
     --32-bit          Force a 32-bit simulator (use with --sdl-threads for duke3d)
+    --android-sim     Build the simulator for Android (see uisimulator/android/README)
     --prefix          Target installation directory
     --compiler-prefix Override compiler prefix (inherently dangerous)
     --help            Shows this message (must not be used with other options)
@@ -1588,6 +1617,7 @@ ARG_ARM_THUMB=
 ARG_PREFIX="$PREFIX"
 ARG_THREAD_SUPPORT=
 ARG_32BIT=
+ARG_ANDROID_SIM=
 ARG_ADDR_SAN=
 ARG_UBSAN=
 ARG_STACK_PROTECTOR=
@@ -1612,6 +1642,7 @@ for arg in "$@"; do
 		--thumb)      ARG_ARM_THUMB=1;;
 		--no-thumb)   ARG_ARM_THUMB=0;;
 		--32-bit)     ARG_32BIT=1;;
+		--android-sim) ARG_ANDROID_SIM=1;;
         --sdl-threads)ARG_THREAD_SUPPORT=1;;
         --no-sdl-threads)
                       ARG_THREAD_SUPPORT=0;;
@@ -4578,7 +4609,7 @@ else
    GCCOPTS="$GCCOPTS -Wno-override-init"
  fi
 
- if test "$gccnum" -ge "700"; then
+ if test "$gccnum" -ge "700" && [ "$ARG_ANDROID_SIM" != "1" ]; then
    # gcc 7 spews a bunch of warnings by default
    GCCOPTS="$GCCOPTS -Wimplicit-fallthrough=0"
  fi
@@ -5043,6 +5074,7 @@ export ROCKBOX_SHARE_PATH=${sharedir}
 export ROCKBOX_BINARY_PATH=${bindir}
 export ROCKBOX_LIBRARY_PATH=${libdir}
 export SDLCONFIG=${sdl}
+export LIBGCC=${libgcc}
 export LCDORIENTATION=${lcd_orientation}
 export ANDROID_ARCH=${ANDROID_ARCH}
 export ANDROID_NDK_PATH=${ANDROID_NDK_PATH}

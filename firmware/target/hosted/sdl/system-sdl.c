@@ -228,6 +228,24 @@ void system_init(void)
     sigaction(SIGUSR1, &ip_sa, NULL);
 #endif
 
+#ifdef __ANDROID__
+    {
+        /* Work from the app's private files dir: the device image
+         * (UI256.bmp) is found there, and stdout goes nowhere */
+        const char *dir = SDL_AndroidGetInternalStoragePath();
+        if (!dir || chdir(dir))
+            printf("chdir(%s) failed\n", dir ? dir : "files dir");
+        if (freopen("stdout.txt", "w", stdout))
+            setvbuf(stdout, NULL, _IOLBF, 0);
+        dup2(fileno(stdout), fileno(stderr));
+    }
+    /* Back acts as Menu instead of closing the app */
+    SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
+    /* Keep running and playing in the background */
+    SDL_SetHint(SDL_HINT_ANDROID_BLOCK_ON_PAUSE, "0");
+    SDL_SetHint(SDL_HINT_ANDROID_BLOCK_ON_PAUSE_PAUSEAUDIO, "0");
+#endif
+
     if (SDL_InitSubSystem(SDL_INIT_TIMER))
         panicf("%s", SDL_GetError());
 

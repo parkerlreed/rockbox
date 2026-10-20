@@ -40,4 +40,14 @@ void sdl_window_adjustment_needed(bool destroy_texture);
 /* Creates window, renderer, and LCD surface when app launches */
 void sdl_window_setup(void);
 
+/* Tints the device body and centre button with the next colour
+   (simulators with HAVE_SIM_TOUCHWHEEL) */
+void sdl_window_cycle_skin_colour(void);
+
+#ifdef __ANDROID__
+/* Called from the event thread when the app goes to or returns from the
+   background, which replaces the window's surface */
+void sdl_window_set_visible(bool visible);
+#endif
+
 #endif /* #ifndef __WINDOWSDL_H__ */

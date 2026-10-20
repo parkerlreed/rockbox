@@ -16,6 +16,7 @@ INCLUDES = -I$(BUILDDIR) -I$(BUILDDIR)/lang $(TARGET_INC)
 CFLAGS = $(INCLUDES) $(DEFINES) $(GCCOPTS)
 PPCFLAGS = $(filter-out -g -Dmain=SDL_main,$(CFLAGS)) # cygwin sdl-config fix
 CORE_LDOPTS = $(GLOBAL_LDOPTS)  # linker ops specifically for core build
+LIBGCC ?= -lgcc # build dirs configured before LIBGCC existed
 
 TOOLS = $(TOOLSDIR)/rdf2binary $(TOOLSDIR)/convbdf \
 	$(TOOLSDIR)/codepages $(TOOLSDIR)/scramble $(TOOLSDIR)/bmp2rb \
