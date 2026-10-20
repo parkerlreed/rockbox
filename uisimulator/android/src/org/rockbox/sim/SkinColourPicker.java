@@ -40,15 +40,18 @@ class SkinColourPicker
     private static final int HUE = 0, SAT = 1, VAL = 2, OPACITY = 3;
     private static final int DEFAULT_OPACITY = 80;
 
+    /* opacity -1: the device image has none (SVG), so no slider */
     static void show(Activity activity, int r, int g, int b, int opacity)
     {
+        final boolean hasOpacity = opacity >= 0;
         final int[] old = { r, g, b, opacity };
         float[] hsv = new float[3];
         Color.RGBToHSV(r, g, b, hsv);
         /* starting from the original image, start with some colour */
         final int[] value = { Math.round(hsv[0]), Math.round(hsv[1] * 100),
                               Math.round(hsv[2] * 100),
-                              opacity > 0 ? opacity : DEFAULT_OPACITY };
+                              !hasOpacity ? 100
+                              : opacity > 0 ? opacity : DEFAULT_OPACITY };
         float density = activity.getResources().getDisplayMetrics().density;
         final int pad = (int)(20 * density);
         final int track = (int)(10 * density);
@@ -68,7 +71,7 @@ class SkinColourPicker
                 bars[i].setProgressDrawable(gradient(i, value, track));
         };
 
-        for (int i = 0; i < NAMES.length; i++)
+        for (int i = 0; i < (hasOpacity ? NAMES.length : OPACITY); i++)
         {
             final int c = i;
             final TextView label = new TextView(activity);

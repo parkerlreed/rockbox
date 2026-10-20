@@ -61,6 +61,10 @@ if [ -f "$SRCDIR/bitmaps/UI-$MODELNAME.bmp" ]; then
 else
     cp "$BUILDDIR/UI256.bmp" "$OUT/files/"
 fi
+# Vector device image, drawn instead where there is one (window-sdl.c)
+if [ -f "$SRCDIR/skins/$MODELNAME.svg" ]; then
+    cp "$SRCDIR/skins/$MODELNAME.svg" "$OUT/files/skin.svg"
+fi
 rm -f "$OUT/files/simdisk/.rockbox/libmain.so"
 (cd "$OUT/files/simdisk" && find .rockbox -name '*.rock' -o -name '*.codec' -o -name '*.ovl') |
 while read -r f; do

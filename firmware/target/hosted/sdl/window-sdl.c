@@ -200,6 +200,213 @@ static void load_skin_colour(void)
     apply_skin_colour();
 }
 
+/* Vector device image (skin.svg, see uisimulator/android/skins), drawn
+   sharp at the window's resolution. Runs of shapes whose group ids start
+   with "body", "wheel" or "label" are drawn in white into their own
+   layers and coloured when rendering, so colour changes are instant. */
+#define SVG_SKIN_FILE "skin.svg"
+#define SVG_MAX_LAYERS 16
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wundef"
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+#define NANOSVG_IMPLEMENTATION
+#define NANOSVGRAST_IMPLEMENTATION
+#include "nanosvg/nanosvg.h"
+#include "nanosvg/nanosvgrast.h"
+#pragma GCC diagnostic pop
+
+enum { SVG_FIXED, SVG_BODY, SVG_WHEEL, SVG_LABEL };
+
+static char *svg_skin; /* the SVG with its colours filled in white */
+static struct
+{
+    SDL_Texture *texture;
+    SDL_FRect dest; /* in device image coordinates */
+    int tint;
+} svg_layers[SVG_MAX_LAYERS];
+static int svg_layer_count, svg_layers_w, svg_layers_h;
+
+static int svg_tint(const char *id)
+{
+    if (!SDL_strncmp(id, "body", 4))
+        return SVG_BODY;
+    if (!SDL_strncmp(id, "wheel", 5) && SDL_strncmp(id, "wheel-details", 13))
+        return SVG_WHEEL;
+    if (!SDL_strncmp(id, "label", 5))
+        return SVG_LABEL;
+    return SVG_FIXED;
+}
+
+static void load_svg_skin(void)
+{
+    static const char *const colours[] =
+        { "{body}", "{wheel}", "{button}", "{label}" };
+    size_t size;
+    char *text = SDL_LoadFile(SVG_SKIN_FILE, &size);
+    if (!text)
+        return;
+
+    /* every placeholder becomes "#ffffff", one character longer */
+    svg_skin = SDL_malloc(size * 2 + 1);
+    char *out = svg_skin;
+    for (const char *p = text; *p; )
+    {
+        size_t i;
+        for (i = 0; i < SDL_arraysize(colours); i++)
+            if (!SDL_strncmp(p, colours[i], SDL_strlen(colours[i])))
+                break;
+        if (i < SDL_arraysize(colours))
+        {
+            out += SDL_snprintf(out, 8, "#ffffff");
+            p += SDL_strlen(colours[i]);
+        }
+        else
+            *out++ = *p++;
+    }
+    *out = '\0';
+    SDL_free(text);
+}
+
+static void free_svg_layers(void)
+{
+    for (int i = 0; i < svg_layer_count; i++)
+        SDL_DestroyTexture(svg_layers[i].texture);
+    svg_layer_count = 0;
+}
+
+/* Matte anodised aluminium: a faint fine grain, only darkening as the
+   layer is white */
+static void add_grain(Uint8 *px, int w, int h)
+{
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
+        {
+            Uint32 n = (Uint32)x * 374761393u + (Uint32)y * 668265263u;
+            n = (n ^ (n >> 13)) * 1274126177u;
+            float k = 1.f - ((n >> 16) & 0xff) / 255.f * 0.034f;
+            Uint8 *p = &px[(y * w + x) * 4];
+            p[0] *= k;
+            p[1] *= k;
+            p[2] *= k;
+        }
+}
+
+static void build_svg_layers(int out_w, int out_h)
+{
+    free_svg_layers();
+    svg_layers_w = out_w;
+    svg_layers_h = out_h;
+
+    char *text = SDL_strdup(svg_skin);
+    NSVGimage *image = nsvgParse(text, "px", 96);
+    SDL_free(text);
+    NSVGrasterizer *rast = nsvgCreateRasterizer();
+    if (!image || !rast)
+        goto out;
+
+    float scale = SDL_min(out_w / (float)UI_WIDTH, out_h / (float)UI_HEIGHT);
+    NSVGshape *run = image->shapes;
+    while (run && svg_layer_count < SVG_MAX_LAYERS)
+    {
+        int tint = svg_tint(run->id);
+        float b[4] = { UI_WIDTH, UI_HEIGHT, 0, 0 };
+        NSVGshape *end, *s;
+        for (end = run; end && svg_tint(end->id) == tint; end = end->next)
+        {
+            /* bounds leave out strokes */
+            float pad = end->strokeWidth / 2 + 1;
+            b[0] = SDL_min(b[0], end->bounds[0] - pad);
+            b[1] = SDL_min(b[1], end->bounds[1] - pad);
+            b[2] = SDL_max(b[2], end->bounds[2] + pad);
+            b[3] = SDL_max(b[3], end->bounds[3] + pad);
+        }
+        for (s = image->shapes; s; s = s->next)
+            s->flags &= ~NSVG_FLAGS_VISIBLE;
+        for (s = run; s != end; s = s->next)
+            s->flags |= NSVG_FLAGS_VISIBLE;
+
+        int x0 = SDL_max(0, (int)SDL_floorf(b[0] * scale));
+        int y0 = SDL_max(0, (int)SDL_floorf(b[1] * scale));
+        int x1 = SDL_min((int)SDL_ceilf(UI_WIDTH * scale), (int)SDL_ceilf(b[2] * scale));
+        int y1 = SDL_min((int)SDL_ceilf(UI_HEIGHT * scale), (int)SDL_ceilf(b[3] * scale));
+        int w = x1 - x0, h = y1 - y0;
+        Uint8 *px = w > 0 && h > 0 ? SDL_calloc(w * h, 4) : NULL;
+        if (px)
+        {
+            nsvgRasterize(rast, image, -x0, -y0, scale, px, w, h, w * 4);
+            if (tint == SVG_BODY)
+                add_grain(px, w, h);
+            SDL_Texture *t = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_RGBA32,
+                                               SDL_TEXTUREACCESS_STATIC, w, h);
+            if (t)
+            {
+                SDL_UpdateTexture(t, NULL, px, w * 4);
+                SDL_SetTextureBlendMode(t, SDL_BLENDMODE_BLEND);
+                svg_layers[svg_layer_count].texture = t;
+                svg_layers[svg_layer_count].dest = (SDL_FRect)
+                    { x0 / scale, y0 / scale, w / scale, h / scale };
+                svg_layers[svg_layer_count].tint = tint;
+                svg_layer_count++;
+            }
+            SDL_free(px);
+        }
+        run = end;
+    }
+out:
+    if (rast)
+        nsvgDeleteRasterizer(rast);
+    if (image)
+        nsvgDelete(image);
+}
+
+/* Draws the SVG device image and the LCD; false without an SVG skin */
+static bool render_svg_skin(void)
+{
+    int out_w, out_h;
+    if (!svg_skin || !background ||
+        SDL_GetRendererOutputSize(sdlRenderer, &out_w, &out_h))
+        return false;
+    if (out_w != svg_layers_w || out_h != svg_layers_h)
+        build_svg_layers(out_w, out_h);
+    if (!svg_layer_count)
+        return false;
+
+    /* The colour picker sets the aluminium; the wheel follows it. Opacity
+       0 (the original image, for the bitmap) is plain silver here. */
+    SDL_Color body = { skin_tint.r, skin_tint.g, skin_tint.b, 255 };
+    if (!skin_tint.opacity)
+        body = (SDL_Color){ 0xc9, 0xcb, 0xcf, 255 };
+    bool dark = luminance(body.r, body.g, body.b) < 80;
+    SDL_Color wheel = dark ? (SDL_Color){ 0x2f, 0x2f, 0x32, 255 }
+                           : (SDL_Color){ 0xf0, 0xf0, 0xf0, 255 };
+    SDL_Color label = dark ? (SDL_Color){ 0x8e, 0x8e, 0x92, 255 }
+                           : (SDL_Color){ 0x9a, 0x9a, 0x9a, 255 };
+
+    SDL_RenderClear(sdlRenderer);
+    for (int i = 0; i < svg_layer_count; i++)
+    {
+        SDL_Color c = { 255, 255, 255, 255 };
+        if (svg_layers[i].tint == SVG_BODY)
+            c = body;
+        else if (svg_layers[i].tint == SVG_WHEEL)
+            c = wheel;
+        else if (svg_layers[i].tint == SVG_LABEL)
+            c = label;
+        SDL_SetTextureColorMod(svg_layers[i].texture, c.r, c.g, c.b);
+        SDL_RenderCopyF(sdlRenderer, svg_layers[i].texture, NULL,
+                        &svg_layers[i].dest);
+    }
+    SDL_Rect lcd = { UI_LCD_POSX, UI_LCD_POSY, SIM_LCD_WIDTH, SIM_LCD_HEIGHT };
+    SDL_RenderCopy(sdlRenderer, gui_texture, &lcd, &lcd);
+    SDL_RenderPresent(sdlRenderer);
+    return true;
+}
+
 #ifdef __ANDROID__
 #include <jni.h>
 
@@ -219,10 +426,13 @@ Java_org_rockbox_sim_RockboxSimActivity_nativeSetSkinColour(JNIEnv *env,
     skin_tint.g = SDL_clamp(g, 0, 255);
     skin_tint.b = SDL_clamp(b, 0, 255);
     skin_tint.opacity = SDL_clamp(opacity, 0, 100);
-    apply_skin_colour();
+    if (!svg_skin) /* the SVG is coloured when rendering */
+    {
+        apply_skin_colour();
+        sdl_window_adjustment_needed(true);
+    }
     if (save)
         save_skin_colour();
-    sdl_window_adjustment_needed(true);
     SDL_UnlockMutex(window_mutex);
     sdl_window_request_render();
 }
@@ -237,9 +447,10 @@ static void show_skin_colour_picker(void)
     jclass cls = (*env)->GetObjectClass(env, activity);
     jmethodID show = (*env)->GetMethodID(env, cls, "showSkinColourPicker",
                                          "(IIII)V");
+    /* the SVG has no opacity: -1 hides it */
     if (show)
         (*env)->CallVoidMethod(env, activity, show, skin_tint.r, skin_tint.g,
-                               skin_tint.b, skin_tint.opacity);
+                               skin_tint.b, svg_skin ? -1 : skin_tint.opacity);
     if ((*env)->ExceptionCheck(env))
         (*env)->ExceptionClear(env);
     (*env)->DeleteLocalRef(env, cls);
@@ -445,6 +656,9 @@ void sdl_window_render(void)
         rebuild_gui_texture();
     }
     else
+#ifdef HAVE_SIM_TOUCHWHEEL
+    if (!render_svg_skin())
+#endif
     {
         SDL_RenderClear(sdlRenderer);
         SDL_RenderCopy(sdlRenderer, gui_texture, NULL, NULL);
@@ -523,6 +737,7 @@ void sdl_window_setup(void)
     {
         skin_image = picture_surface;
         picture_surface = NULL;
+        load_svg_skin();
         load_skin_colour();
         if (!picture_surface)
         {
