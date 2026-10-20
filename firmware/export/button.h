@@ -150,6 +150,11 @@ bool button_get_sw_poweroff_state(void);
 void sim_haptics_set(int strength);
 #endif
 
+#ifdef HAVE_SIM_RAINBOW
+/* Cycles the colour of the device image */
+void sim_rainbow_set(bool on);
+#endif
+
 #ifdef HAVE_SIM_ANDROID
 /* The models in the APK, as "name\ttitle\n" lines; returns how many */
 int sim_android_models(char *buf, size_t size);

@@ -17350,3 +17350,20 @@
     android_sim: "Model"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_ANDROID_RAINBOW
+  desc: in the Android settings menu; cycles the device image's colour
+  user: core
+  <source>
+    *: none
+    android_sim: "Rainbow"
+  </source>
+  <dest>
+    *: none
+    android_sim: "Rainbow"
+  </dest>
+  <voice>
+    *: none
+    android_sim: "Rainbow"
+  </voice>
+</phrase>

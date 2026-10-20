@@ -903,6 +903,9 @@ void settings_apply(bool read_disk)
 #ifdef HAVE_SIM_HAPTICS
     sim_haptics_set(global_settings.clickwheel_vibration);
 #endif
+#ifdef HAVE_SIM_RAINBOW
+    sim_rainbow_set(global_settings.sim_rainbow);
+#endif
     CHART(">set_codepage");
     set_codepage(global_settings.default_codepage);
     CHART("<set_codepage");
