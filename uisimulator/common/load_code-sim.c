@@ -31,8 +31,9 @@
 #include <string.h>
 
 /* Android won't map code from app data as executable, so codecs and
- * plugins ship in the APK next to libmain.so, named after their path:
- * /.rockbox/rocks/games/foo.rock -> librocks_games_foo_rock.so
+ * plugins ship in the APK next to libmain_<model>.so, named after the
+ * model and their path, as the APK holds several models:
+ * /.rockbox/rocks/games/foo.rock -> libipodvideo_rocks_games_foo_rock.so
  * (see uisimulator/android/build-apk.sh) */
 static int android_lib_path(char *buf, size_t bufsize, const char *filename)
 {
@@ -43,7 +44,7 @@ static int android_lib_path(char *buf, size_t bufsize, const char *filename)
     rel += sizeof(ROCKBOX_DIR "/") - 1;
 
     int dirlen = strrchr(info.dli_fname, '/') - info.dli_fname;
-    int n = snprintf(buf, bufsize, "%.*s/lib%s",
+    int n = snprintf(buf, bufsize, "%.*s/lib" TARGET_NAME "_%s",
                      dirlen, info.dli_fname, rel);
     if (n < 0 || (size_t)n + 3 >= bufsize)
         return -1;

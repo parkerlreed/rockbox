@@ -40,6 +40,20 @@ SDL_Window   *sdlWindow;
 static SDL_Renderer *sdlRenderer;
 static SDL_Surface  *picture_surface;
 
+/* SDL looks for relative paths in the app's files dir on Android, not in
+   this model's dir there (see system_init()) */
+static const char *sim_file(const char *name)
+{
+#ifdef __ANDROID__
+    static char path[512];
+    SDL_snprintf(path, sizeof(path), "%s/" TARGET_NAME "/%s",
+                 SDL_AndroidGetInternalStoragePath(), name);
+    return path;
+#else
+    return name;
+#endif
+}
+
 #ifdef HAVE_SIM_TOUCHWHEEL
 /* Colour for the device body and centre button; the clickwheel ring and
    the screen keep theirs. Opacity 0 keeps the image as it is. */
@@ -247,7 +261,7 @@ static void load_svg_skin(void)
     static const char *const colours[] =
         { "{body}", "{wheel}", "{button}", "{label}" };
     size_t size;
-    char *text = SDL_LoadFile(SVG_SKIN_FILE, &size);
+    char *text = SDL_LoadFile(sim_file(SVG_SKIN_FILE), &size);
     if (!text)
         return;
 
@@ -566,6 +580,7 @@ static void rebuild_gui_texture(void)
     }
 
     if (background && picture_surface &&
+        picture_surface->w == w && picture_surface->h == h &&
         (gui_surface = SDL_ConvertSurface(picture_surface, sim_lcd_surface->format, 0)))
     {
         SDL_UpdateTexture(gui_texture, NULL, gui_surface->pixels, gui_surface->pitch);
@@ -730,7 +745,7 @@ void sdl_window_setup(void)
         flags |= SDL_WINDOW_RESIZABLE;
 #endif
 
-    if (!(picture_surface = SDL_LoadBMP("UI256.bmp")))
+    if (!(picture_surface = SDL_LoadBMP(sim_file("UI256.bmp"))))
         background = false;
 #ifdef HAVE_SIM_TOUCHWHEEL
     else

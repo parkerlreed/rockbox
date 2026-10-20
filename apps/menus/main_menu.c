@@ -26,9 +26,11 @@
 #include "lang.h"
 #include "action.h"
 #include "settings.h"
+#include "button.h"
 #include "power.h"
 #include "powermgmt.h"
 #include "menu.h"
+#include "list.h"
 #include "misc.h"
 #include "exported_menus.h"
 #include "tree.h"
@@ -505,10 +507,85 @@ MENUITEM_FUNCTION(main_menu_config_item, 0, ID2P(LANG_MAIN_MENU),
 
 #ifdef HAVE_SIM_HAPTICS
 /* Settings for the simulator running on Android */
+
+/* the models in the APK: "name\ttitle\n" lines */
+static char android_models[256];
+static int android_model_chosen;
+
+static const char *android_model_line(int item, char **title)
+{
+    char *line = android_models;
+    for (int i = 0; i < item && line; i++)
+        if ((line = strchr(line, '\n')))
+            line++;
+    if (!line)
+        return NULL;
+    char *tab = strchr(line, '\t');
+    *title = tab ? tab + 1 : line;
+    return line;
+}
+
+static const char *android_model_name(int item, void *data,
+                                      char *buffer, size_t buffer_len)
+{
+    (void)data;
+    char *title;
+    if (!android_model_line(item, &title))
+        return "";
+    strlcpy(buffer, title, buffer_len);
+    char *nl = strchr(buffer, '\n');
+    if (nl)
+        *nl = '\0';
+    return buffer;
+}
+
+static int android_model_action(int action, struct gui_synclist *lists)
+{
+    if (action == ACTION_STD_OK)
+    {
+        android_model_chosen = gui_synclist_get_sel_pos(lists);
+        return ACTION_STD_CANCEL;
+    }
+    return action;
+}
+
+/* Lists the models; choosing another restarts the app as that model */
+static int android_model(void)
+{
+    struct simplelist_info info;
+    int count = sim_android_models(android_models, sizeof(android_models));
+    char *title;
+    int current = 0;
+
+    for (int i = 0; i < count; i++)
+    {
+        const char *line = android_model_line(i, &title);
+        if (!strncmp(line, TARGET_NAME "\t", sizeof(TARGET_NAME)))
+            current = i;
+    }
+
+    simplelist_info_init(&info, str(LANG_ANDROID_MODEL), count, NULL);
+    info.selection = current;
+    info.get_name = android_model_name;
+    info.action_callback = android_model_action;
+    android_model_chosen = -1;
+    simplelist_show_list(&info);
+
+    if (android_model_chosen >= 0 && android_model_chosen != current)
+    {
+        char name[32];
+        const char *line = android_model_line(android_model_chosen, &title);
+        strlcpy(name, line, MIN(sizeof(name), (size_t)(title - line)));
+        sim_android_switch_model(name);
+    }
+    return 0;
+}
+MENUITEM_FUNCTION(android_model_item, 0, ID2P(LANG_ANDROID_MODEL),
+                  android_model, NULL, Icon_NOICON);
 MENUITEM_SETTING(clickwheel_vibration, &global_settings.clickwheel_vibration,
                  NULL);
 MAKE_MENU(android_menu, ID2P(LANG_ANDROID), 0, Icon_System_menu,
-          &clickwheel_vibration);
+          &android_model_item, &clickwheel_vibration);
 #endif
 
 /***********************************/

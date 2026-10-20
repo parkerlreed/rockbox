@@ -41,6 +41,7 @@
 #include "debug.h"
 #include "powermgmt.h"
 #include "storage.h"
+#include "string-extra.h"
 
 #ifdef HAVE_TOUCHSCREEN
 #include "touchscreen.h"
@@ -180,6 +181,72 @@ static void haptic(int kind)
                                      kind, haptics_strength);
     if ((*env)->ExceptionCheck(env))
         (*env)->ExceptionClear(env);
+}
+
+/* Settings > Android > Model (apps/menus/main_menu.c), see
+   RockboxSimActivity.modelList() and switchModel() */
+int sim_android_models(char *buf, size_t size)
+{
+    int count = 0;
+    buf[0] = '\0';
+    JNIEnv *env = SDL_AndroidGetJNIEnv();
+    jobject activity = SDL_AndroidGetActivity();
+    if (!env || !activity)
+        return 0;
+
+    jclass cls = (*env)->GetObjectClass(env, activity);
+    jmethodID list = (*env)->GetMethodID(env, cls, "modelList",
+                                         "()Ljava/lang/String;");
+    jstring models = list ? (*env)->CallObjectMethod(env, activity, list) : NULL;
+    if (models)
+    {
+        const char *s = (*env)->GetStringUTFChars(env, models, NULL);
+        if (s)
+        {
+            strlcpy(buf, s, size);
+            (*env)->ReleaseStringUTFChars(env, models, s);
+        }
+        (*env)->DeleteLocalRef(env, models);
+    }
+    if ((*env)->ExceptionCheck(env))
+        (*env)->ExceptionClear(env);
+    (*env)->DeleteLocalRef(env, cls);
+    (*env)->DeleteLocalRef(env, activity);
+
+    for (const char *p = buf; *p; p++)
+        if (*p == '\n')
+            count++;
+    return count;
+}
+
+void sim_android_switch_model(const char *name)
+{
+    JNIEnv *env = SDL_AndroidGetJNIEnv();
+    jobject activity = SDL_AndroidGetActivity();
+    if (!env || !activity)
+        return;
+
+    jclass cls = (*env)->GetObjectClass(env, activity);
+    jmethodID sw = (*env)->GetMethodID(env, cls, "switchModel",
+                                       "(Ljava/lang/String;)V");
+    jstring model = (*env)->NewStringUTF(env, name);
+    if (sw && model)
+        (*env)->CallVoidMethod(env, activity, sw, model);
+    if ((*env)->ExceptionCheck(env))
+        (*env)->ExceptionClear(env);
+    if (model)
+        (*env)->DeleteLocalRef(env, model);
+    (*env)->DeleteLocalRef(env, cls);
+    (*env)->DeleteLocalRef(env, activity);
+}
+
+/* Called by the app to switch models: shuts down like holding Play */
+JNIEXPORT void JNICALL
+Java_org_rockbox_sim_RockboxSimActivity_nativeShutDown(JNIEnv *env, jclass cls)
+{
+    (void)env;
+    (void)cls;
+    sys_poweroff();
 }
 #else
 #define haptic(kind)

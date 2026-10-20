@@ -232,11 +232,14 @@ void system_init(void)
 
 #ifdef __ANDROID__
     {
-        /* Work from the app's private files dir: the device image
-         * (UI256.bmp) is found there, and stdout goes nowhere */
-        const char *dir = SDL_AndroidGetInternalStoragePath();
-        if (!dir || chdir(dir))
-            printf("chdir(%s) failed\n", dir ? dir : "files dir");
+        /* Work from this model's dir in the app's private files: the
+         * device image (UI256.bmp) is found there, and stdout goes
+         * nowhere */
+        char dir[512];
+        snprintf(dir, sizeof(dir), "%s/" TARGET_NAME,
+                 SDL_AndroidGetInternalStoragePath());
+        if (chdir(dir))
+            printf("chdir(%s) failed\n", dir);
         if (freopen("stdout.txt", "w", stdout))
             setvbuf(stdout, NULL, _IOLBF, 0);
         dup2(fileno(stdout), fileno(stderr));

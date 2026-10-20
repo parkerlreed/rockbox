@@ -2,14 +2,19 @@ This folder packages the Rockbox simulator as an Android app: the device
 skin, buttons and clickwheel as on the desktop, running on a phone. It is
 unrelated to the older Rockbox-as-an-application port in /android.
 
-The simulator is built as libmain.so and started by SDL2's SDLActivity.
-Codecs and plugins ship in the APK as libraries next to it, because Android
-won't run code from app storage (see uisimulator/common/load_code-sim.c).
+The APK holds several models, the iPod Video and the iPod mini 2G; the
+user switches between them in Settings > Android > Model, which restarts the
+app. Each model's simulator is built as libmain_<model>.so and started by
+SDL2's SDLActivity. Codecs and plugins ship in the APK as libraries next to
+it, named after the model, because Android won't run code from app storage
+(see uisimulator/common/load_code-sim.c). build-apk.sh builds the models
+other than the one configured in models/<model> in the build directory.
+
 The simulated disk is the phone's shared storage (/sdcard), so the app asks
-for "All files access" on first start. Rockbox's own files (.rockbox) are
-kept in /sdcard/Rockbox/.rockbox instead of at the root (see
+for "All files access" on first start. Each model's own files (.rockbox)
+are kept in /sdcard/Rockbox/<model>/.rockbox instead of at the root (see
 uisimulator/common/filesystem-sim.c), unpacked there on first run and after
-updates.
+updates. The device images are the SVGs in skins/.
 
 Only arm64 (aarch64) is supported.
 

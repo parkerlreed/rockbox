@@ -17333,3 +17333,20 @@
     android_sim: "Clickwheel Vibration"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_ANDROID_MODEL
+  desc: in the Android settings menu; which device the simulator runs as
+  user: core
+  <source>
+    *: none
+    android_sim: "Model"
+  </source>
+  <dest>
+    *: none
+    android_sim: "Model"
+  </dest>
+  <voice>
+    *: none
+    android_sim: "Model"
+  </voice>
+</phrase>

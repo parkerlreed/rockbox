@@ -305,11 +305,12 @@ int sim_get_os_path(char *buffer, const char *path, size_t bufsize)
 
         #ifdef __ANDROID__
             /* The root is all of shared storage; keep Rockbox's own files
-               out of the way in Rockbox/.rockbox */
+               out of the way in Rockbox/<model>/.rockbox */
             if (level == 1 && len == sizeof (ROCKBOX_DIR) - 2 &&
                 !strncmp(p, &ROCKBOX_DIR[1], len))
             {
-                size = path_append(buffer, PA_SEP_HARD, "Rockbox", bufsize);
+                size = path_append(buffer, PA_SEP_HARD,
+                                   "Rockbox" PATH_SEPSTR TARGET_NAME, bufsize);
                 if (size >= bufsize)
                 {
                     errno = ENAMETOOLONG;
