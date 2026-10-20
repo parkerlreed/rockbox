@@ -1,0 +1,6 @@
+nanosvg, an SVG parser and rasterizer, used to draw the simulator's device
+image from an SVG (see window-sdl.c).
+
+From https://github.com/memononen/nanosvg, commit
+239e102ec2c691f2902e20ace2ed36ee4a35cfe6, unmodified. zlib licence, see
+LICENSE.txt.
