@@ -302,14 +302,55 @@ static void rebuild_gui_texture(void)
 }
 
 #ifdef __ANDROID__
+/* The GL context behind the renderer can only be current on one thread, so
+   only the event thread, which created it, renders. Other threads ask it
+   to, and it then redraws the whole LCD from lcd_surface. */
+static SDL_threadID render_thread;
+static Uint32 render_event_type = (Uint32)-1;
+static SDL_atomic_t render_requested;
 static volatile bool window_hidden = false;
-static volatile bool surface_replaced = false;
+
+bool sdl_window_is_render_thread(void)
+{
+    return SDL_ThreadID() == render_thread;
+}
+
+void sdl_window_request_render(void)
+{
+    if (render_event_type == (Uint32)-1 ||
+        !SDL_AtomicCAS(&render_requested, 0, 1))
+        return; /* one pending is enough */
+
+    SDL_Event ev;
+    SDL_zero(ev);
+    ev.type = render_event_type;
+    /* SDL_RegisterEvents() may hand out SDL_USEREVENT, which power_off()
+       also pushes: tell ours apart */
+    ev.user.data1 = &render_event_type;
+    if (SDL_PushEvent(&ev) <= 0)
+        SDL_AtomicSet(&render_requested, 0);
+}
+
+bool sdl_window_handle_event(SDL_Event *event)
+{
+    if (event->type != render_event_type ||
+        event->user.data1 != &render_event_type)
+        return false;
+
+    SDL_AtomicSet(&render_requested, 0);
+    if (window_hidden)
+        return true; /* no surface; redrawn when visible again */
+    sdl_gui_update(lcd_surface, 0, 0, SIM_LCD_WIDTH, SIM_LCD_HEIGHT,
+                   SIM_LCD_WIDTH, SIM_LCD_HEIGHT,
+                   background ? UI_LCD_POSX : 0, background ? UI_LCD_POSY : 0);
+    return true;
+}
 
 void sdl_window_set_visible(bool visible)
 {
-    if (visible)
-        surface_replaced = true;
     window_hidden = !visible;
+    if (visible)
+        sdl_window_request_render();
 }
 #endif
 
@@ -318,14 +359,10 @@ void sdl_window_render(void)
 #ifdef __ANDROID__
     if (window_hidden)
         return;
-    if (surface_replaced)
+    if (!sdl_window_is_render_thread())
     {
-        /* SDL restores the GL context on the event thread, but it is
-           current on this one: rebind it to the new surface */
-        SDL_GLContext context = SDL_GL_GetCurrentContext();
-        surface_replaced = false;
-        SDL_GL_MakeCurrent(sdlWindow, NULL);
-        SDL_GL_MakeCurrent(sdlWindow, context);
+        sdl_window_request_render();
+        return;
     }
 #endif
     if (new_gui_texture_needed)
@@ -349,6 +386,14 @@ bool sdl_window_adjust(void)
 
     if (!window_adjustment_needed)
         return false;
+#ifdef __ANDROID__
+    if (!sdl_window_is_render_thread())
+    {
+        /* adjusted when the event thread renders */
+        sdl_window_request_render();
+        return true;
+    }
+#endif
     window_adjustment_needed = false;
 
     get_window_dimensions(&w, &h);
@@ -440,4 +485,8 @@ void sdl_window_setup(void)
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, display_zoom == 1 ? "best" : "nearest");
     display_zoom = 0; /* reset to 0 unless/until user requests a scale level change */
     window_mutex = SDL_CreateMutex();
+#ifdef __ANDROID__
+    render_thread = SDL_ThreadID();
+    render_event_type = SDL_RegisterEvents(1);
+#endif
 }

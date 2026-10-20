@@ -434,6 +434,10 @@ static bool event_handler(SDL_Event *event)
     SDLKey ev_key;
 #endif
 
+#ifdef __ANDROID__
+    if (sdl_window_handle_event(event))
+        return false;
+#endif
 #ifdef HAVE_SIM_TOUCHWHEEL
     if (event->type == tw_event_type && event->user.data1 == &tw_event_type)
     {
@@ -483,12 +487,7 @@ static bool event_handler(SDL_Event *event)
         sdl_window_set_visible(false);
         break;
     case SDL_APP_DIDENTERFOREGROUND:
-        SDL_LockMutex(window_mutex);
         sdl_window_set_visible(true);
-        sdl_window_adjustment_needed(false);
-        SDL_UnlockMutex(window_mutex);
-        if (!button_queue_full())
-            button_queue_post(SDLK_UNKNOWN, 0); /* redraw on main thread */
         break;
 #endif
     case SDL_KEYDOWN:

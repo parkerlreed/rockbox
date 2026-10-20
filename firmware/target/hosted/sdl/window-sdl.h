@@ -48,6 +48,13 @@ void sdl_window_cycle_skin_colour(void);
 /* Called from the event thread when the app goes to or returns from the
    background, which replaces the window's surface */
 void sdl_window_set_visible(bool visible);
+
+/* Only the event thread renders; other threads request it */
+bool sdl_window_is_render_thread(void);
+void sdl_window_request_render(void);
+
+/* Handles render requests on the event thread; true if it was one */
+bool sdl_window_handle_event(SDL_Event *event);
 #endif
 
 #endif /* #ifndef __WINDOWSDL_H__ */
