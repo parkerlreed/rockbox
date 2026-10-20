@@ -24,6 +24,9 @@
 #include "kernel.h"
 #include "powermgmt.h"
 #include "power.h"
+#ifdef __ANDROID__
+#include <SDL.h>
+#endif
 
 #define BATT_MINMVOLT   3300      /* minimum millivolts of battery */
 #define BATT_MAXMVOLT   4300      /* maximum millivolts of battery */
@@ -50,7 +53,7 @@ static void battery_status_update(void)
 {
     /* Delay next battery update until tick */
     static long update_after_tick = 0;
-#if CONFIG_CHARGING >= CHARGING_MONITOR
+#if CONFIG_CHARGING >= CHARGING_MONITOR && !defined(__ANDROID__)
     /* When greater than 0, the tick to unplug the external power at */
     static unsigned int ext_power_until_tick = 0;
 #endif
@@ -60,6 +63,20 @@ static void battery_status_update(void)
 
     update_after_tick = current_tick + HZ;
 
+#ifdef __ANDROID__
+    /* Report the phone's battery rather than a simulated one */
+    int percent;
+    SDL_PowerState state = SDL_GetPowerInfo(NULL, &percent);
+    if (percent >= 0)
+        batt_millivolts = BATT_MINMVOLT +
+                          percent * (BATT_MAXMVOLT - BATT_MINMVOLT) / 100;
+    charging = state == SDL_POWERSTATE_CHARGING;
+#if CONFIG_CHARGING
+    charger_input_state = (state == SDL_POWERSTATE_CHARGING ||
+                           state == SDL_POWERSTATE_CHARGED)
+                          ? CHARGER_PLUGGED : CHARGER_UNPLUGGED;
+#endif
+#else /* !__ANDROID__ */
 #if CONFIG_CHARGING >= CHARGING_MONITOR
     /* Handle period of being externally powered */
     if (ext_power_until_tick > 0) {
@@ -94,6 +111,7 @@ static void battery_status_update(void)
 #endif
         }
     }
+#endif /* __ANDROID__ */
 
     batt_percent = ((float) (batt_millivolts - BATT_MINMVOLT) / (BATT_MAXMVOLT - BATT_MINMVOLT)) * 100;
     batt_runtime = batt_percent * BATT_MAXRUNTIME;
