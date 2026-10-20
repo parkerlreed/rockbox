@@ -718,11 +718,13 @@ static void button_event(int key, bool pressed)
         if (!pressed)
         {
             SDL_LockMutex(window_mutex);
-            sdl_window_cycle_skin_colour();
-            sdl_window_adjustment_needed(true);
+            bool changed = sdl_window_change_skin_colour();
+            if (changed)
+                sdl_window_adjustment_needed(true);
             SDL_UnlockMutex(window_mutex);
 #if !defined(__WIN32) && !defined (__APPLE__)
-            button_queue_post(SDLK_UNKNOWN, 0); /* update window on main thread */
+            if (changed)
+                button_queue_post(SDLK_UNKNOWN, 0); /* update window on main thread */
 #endif
         }
         return;

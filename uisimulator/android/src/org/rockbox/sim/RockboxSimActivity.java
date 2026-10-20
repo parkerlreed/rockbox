@@ -73,6 +73,17 @@ public class RockboxSimActivity extends SDLActivity
         super.onDestroy();
     }
 
+    /* Colour of the device body and centre button, see window-sdl.c */
+    static native void nativeSetSkinColour(int r, int g, int b, int opacity,
+                                           boolean save);
+
+    /* Called from the simulator when the hidden colour spot is tapped */
+    public void showSkinColourPicker(final int r, final int g, final int b,
+                                     final int opacity)
+    {
+        runOnUiThread(() -> SkinColourPicker.show(this, r, g, b, opacity));
+    }
+
     @Override
     protected String[] getArguments()
     {

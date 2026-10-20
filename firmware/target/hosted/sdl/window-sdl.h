@@ -40,9 +40,10 @@ void sdl_window_adjustment_needed(bool destroy_texture);
 /* Creates window, renderer, and LCD surface when app launches */
 void sdl_window_setup(void);
 
-/* Tints the device body and centre button with the next colour
-   (simulators with HAVE_SIM_TOUCHWHEEL) */
-void sdl_window_cycle_skin_colour(void);
+/* Changes the colour of the device body and centre button (simulators with
+   HAVE_SIM_TOUCHWHEEL): the next preset, or on Android a colour picker.
+   True if the window needs redrawing. */
+bool sdl_window_change_skin_colour(void);
 
 #ifdef __ANDROID__
 /* Called from the event thread when the app goes to or returns from the

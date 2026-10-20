@@ -41,10 +41,16 @@ static SDL_Renderer *sdlRenderer;
 static SDL_Surface  *picture_surface;
 
 #ifdef HAVE_SIM_TOUCHWHEEL
-/* Colours for the device body and centre button; the clickwheel ring and
-   the screen keep theirs. Each comes light, normal and dark, after the
-   original image (skin_colour 0). */
-static const struct { Uint8 r, g, b; } skin_colours[] = {
+/* Colour for the device body and centre button; the clickwheel ring and
+   the screen keep theirs. Opacity 0 keeps the image as it is. */
+static struct { int r, g, b, opacity; } skin_tint = { 150, 100, 200, 0 };
+#define SKIN_COLOUR_FILE "skincolour.txt"
+static SDL_Surface *skin_image; /* as loaded, picture_surface is tinted */
+
+#ifndef __ANDROID__
+/* Colours the skin colour key cycles through: each light, normal and dark
+   after the original image (preset 0). Android has a colour picker. */
+static const struct { Uint8 r, g, b; } skin_presets[] = {
     {  36,  36,  40 }, /* black */
     { 196, 200, 206 }, /* silver */
     { 242, 160, 190 }, /* pink */
@@ -58,32 +64,38 @@ static const struct { Uint8 r, g, b; } skin_colours[] = {
     {  70, 175, 175 }, /* teal */
 };
 #define SKIN_SHADES 3 /* light, normal, dark */
-#define SKIN_COLOURS (1 + SKIN_SHADES * (int)SDL_arraysize(skin_colours))
-#define SKIN_COLOUR_FILE "skincolour.txt"
-static int skin_colour;
+#define SKIN_PRESETS (1 + SKIN_SHADES * (int)SDL_arraysize(skin_presets))
+#define SKIN_PRESET_OPACITY 80
+static int skin_preset;
 
-/* Colour for skin_colour > 0, shaded */
-static void skin_colour_rgb(float *r, float *g, float *b)
+static void set_skin_preset(void)
 {
-    int shade = (skin_colour - 1) % SKIN_SHADES;
-    int i = (skin_colour - 1) / SKIN_SHADES;
-    *r = skin_colours[i].r;
-    *g = skin_colours[i].g;
-    *b = skin_colours[i].b;
+    if (skin_preset == 0)
+    {
+        skin_tint.opacity = 0;
+        return;
+    }
+    int shade = (skin_preset - 1) % SKIN_SHADES;
+    int i = (skin_preset - 1) / SKIN_SHADES;
+    float r = skin_presets[i].r, g = skin_presets[i].g, b = skin_presets[i].b;
     if (shade == 0) /* light: towards white */
     {
-        *r += (255 - *r) * 0.35f;
-        *g += (255 - *g) * 0.35f;
-        *b += (255 - *b) * 0.35f;
+        r += (255 - r) * 0.35f;
+        g += (255 - g) * 0.35f;
+        b += (255 - b) * 0.35f;
     }
     else if (shade == 2) /* dark */
     {
-        *r *= 0.65f;
-        *g *= 0.65f;
-        *b *= 0.65f;
+        r *= 0.65f;
+        g *= 0.65f;
+        b *= 0.65f;
     }
+    skin_tint.r = r;
+    skin_tint.g = g;
+    skin_tint.b = b;
+    skin_tint.opacity = SKIN_PRESET_OPACITY;
 }
-static SDL_Surface *skin_image; /* as loaded, picture_surface is tinted */
+#endif /* !__ANDROID__ */
 
 static int luminance(Uint8 r, Uint8 g, Uint8 b)
 {
@@ -94,9 +106,6 @@ static int luminance(Uint8 r, Uint8 g, Uint8 b)
    outline on dark colours */
 #define TINT_BEVEL_INNER 1
 #define TINT_BEVEL_OUTER 2
-
-/* Keep some of the original skin showing through the colour */
-#define TINT_STRENGTH 0.8f
 
 /* How much of the pixel belongs to the body or centre button: 0 on the
    ring and the screen, blended across the ring's edges */
@@ -118,7 +127,7 @@ static void apply_skin_colour(void)
     if (!s)
         return;
 
-    if (skin_colour && tw.outer_radius)
+    if (skin_tint.opacity > 0 && tw.outer_radius)
     {
         Uint32 *px = s->pixels;
         int stride = s->pitch / 4;
@@ -138,21 +147,20 @@ static void apply_skin_colour(void)
                 }
             }
         float ref = count ? (float)sum / count : 255;
-        float cr, cg, cb;
-        skin_colour_rgb(&cr, &cg, &cb);
+        float opacity = skin_tint.opacity / 100.f;
 
         for (int y = 0; y < s->h; y++)
             for (int x = 0; x < s->w; x++)
             {
-                float w = tint_weight(x, y) * TINT_STRENGTH;
+                float w = tint_weight(x, y) * opacity;
                 if (w == 0)
                     continue;
                 Uint32 *p = &px[y * stride + x];
                 SDL_GetRGB(*p, s->format, &r, &g, &b);
                 float k = luminance(r, g, b) / ref;
-                float tr = SDL_min(255.f, cr * k);
-                float tg = SDL_min(255.f, cg * k);
-                float tb = SDL_min(255.f, cb * k);
+                float tr = SDL_min(255.f, skin_tint.r * k);
+                float tg = SDL_min(255.f, skin_tint.g * k);
+                float tb = SDL_min(255.f, skin_tint.b * k);
                 *p = SDL_MapRGB(s->format, r + (tr - r) * w,
                                 g + (tg - g) * w, b + (tb - b) * w);
             }
@@ -163,17 +171,13 @@ static void apply_skin_colour(void)
     picture_surface = s;
 }
 
-void sdl_window_cycle_skin_colour(void)
+static void save_skin_colour(void)
 {
-    if (!skin_image)
-        return;
-    skin_colour = (skin_colour + 1) % SKIN_COLOURS;
-    apply_skin_colour();
-
     FILE *f = fopen(SKIN_COLOUR_FILE, "w");
     if (f)
     {
-        fprintf(f, "%d\n", skin_colour);
+        fprintf(f, "%d %d %d %d\n", skin_tint.r, skin_tint.g, skin_tint.b,
+                skin_tint.opacity);
         fclose(f);
     }
 }
@@ -183,12 +187,80 @@ static void load_skin_colour(void)
     FILE *f = fopen(SKIN_COLOUR_FILE, "r");
     if (f)
     {
-        if (fscanf(f, "%d", &skin_colour) != 1 || skin_colour < 0 ||
-            skin_colour >= SKIN_COLOURS)
-            skin_colour = 0;
+        int r, g, b, opacity;
+        if (fscanf(f, "%d %d %d %d", &r, &g, &b, &opacity) == 4)
+        {
+            skin_tint.r = SDL_clamp(r, 0, 255);
+            skin_tint.g = SDL_clamp(g, 0, 255);
+            skin_tint.b = SDL_clamp(b, 0, 255);
+            skin_tint.opacity = SDL_clamp(opacity, 0, 100);
+        }
         fclose(f);
     }
     apply_skin_colour();
+}
+
+#ifdef __ANDROID__
+#include <jni.h>
+
+/* Called by the colour picker (SkinColourPicker.java), on Android's UI
+   thread: shows the colour, and saves it if asked */
+JNIEXPORT void JNICALL
+Java_org_rockbox_sim_RockboxSimActivity_nativeSetSkinColour(JNIEnv *env,
+        jclass cls, jint r, jint g, jint b, jint opacity, jboolean save)
+{
+    (void)env;
+    (void)cls;
+    if (!skin_image)
+        return;
+
+    SDL_LockMutex(window_mutex);
+    skin_tint.r = SDL_clamp(r, 0, 255);
+    skin_tint.g = SDL_clamp(g, 0, 255);
+    skin_tint.b = SDL_clamp(b, 0, 255);
+    skin_tint.opacity = SDL_clamp(opacity, 0, 100);
+    apply_skin_colour();
+    if (save)
+        save_skin_colour();
+    sdl_window_adjustment_needed(true);
+    SDL_UnlockMutex(window_mutex);
+    sdl_window_request_render();
+}
+
+static void show_skin_colour_picker(void)
+{
+    JNIEnv *env = SDL_AndroidGetJNIEnv();
+    jobject activity = SDL_AndroidGetActivity();
+    if (!env || !activity)
+        return;
+
+    jclass cls = (*env)->GetObjectClass(env, activity);
+    jmethodID show = (*env)->GetMethodID(env, cls, "showSkinColourPicker",
+                                         "(IIII)V");
+    if (show)
+        (*env)->CallVoidMethod(env, activity, show, skin_tint.r, skin_tint.g,
+                               skin_tint.b, skin_tint.opacity);
+    if ((*env)->ExceptionCheck(env))
+        (*env)->ExceptionClear(env);
+    (*env)->DeleteLocalRef(env, cls);
+    (*env)->DeleteLocalRef(env, activity);
+}
+#endif /* __ANDROID__ */
+
+bool sdl_window_change_skin_colour(void)
+{
+    if (!skin_image)
+        return false;
+#ifdef __ANDROID__
+    show_skin_colour_picker();
+    return false; /* the picker redraws as the colour changes */
+#else
+    skin_preset = (skin_preset + 1) % SKIN_PRESETS;
+    set_skin_preset();
+    apply_skin_colour();
+    save_skin_colour();
+    return true;
+#endif
 }
 #endif /* HAVE_SIM_TOUCHWHEEL */
 
