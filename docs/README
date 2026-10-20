@@ -83,7 +83,7 @@ working by touch. See uisimulator/android/README for the details.
 
    $ mkdir build-android
    $ cd build-android
-   $ ../tools/configure --target=androidsim
+   $ ../tools/configure
 
 4. Build the simulator and its files, then package them as an APK.
 
