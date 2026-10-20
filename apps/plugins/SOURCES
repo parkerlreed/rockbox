@@ -130,6 +130,9 @@ pixel-painter.lua
 amaze.c
 #endif
 
+#ifdef HAVE_SIM_CAMERA
+camera.c
+#endif
 rockblox1d.c
 brickmania.c
 calendar.c

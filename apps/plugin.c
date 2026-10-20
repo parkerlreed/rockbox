@@ -893,6 +893,13 @@ static const struct plugin_api rockbox_api = {
     /* new stuff at the end, sort into place next time
        the API gets incompatible */
     settings_apply,
+#ifdef HAVE_SIM_CAMERA
+    sim_camera_open,
+    sim_camera_close,
+    sim_camera_state,
+    sim_camera_frame,
+    sim_camera_saved,
+#endif
 };
 
 static int plugin_buffer_handle;

@@ -148,6 +148,9 @@ int plugin_open(const char *plugin, const char *parameter);
 #ifdef USB_ENABLE_HID
 #include "usbstack/usb_hid_usage_tables.h"
 #endif
+#ifdef HAVE_SIM_CAMERA
+#include "sim_camera.h"
+#endif
 
 
 #ifdef PLUGIN
@@ -1055,6 +1058,14 @@ struct plugin_api {
     /* new stuff at the end, sort into place next time
        the API gets incompatible */
     void (*settings_apply)(bool read_disk);
+#ifdef HAVE_SIM_CAMERA
+    int (*sim_camera_open)(bool front);
+    void (*sim_camera_close)(void);
+    int (*sim_camera_state)(void);
+    bool (*sim_camera_frame)(unsigned char *dst, int width, int height,
+                             bool colour);
+    void (*sim_camera_saved)(const char *path);
+#endif
 };
 
 /* plugin header */

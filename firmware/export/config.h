@@ -1540,6 +1540,11 @@ Lyre prototype 1 */
 #endif
 #endif
 
+/* The camera plugin, on the simulator on Android */
+#ifdef HAVE_SIM_ANDROID
+#define HAVE_SIM_CAMERA
+#endif
+
 /* Settings > Android > Rainbow cycles the colour of a clickwheel iPod's
    SVG face */
 #if defined(HAVE_SIM_ANDROID) && defined(HAVE_SCROLLWHEEL) && \

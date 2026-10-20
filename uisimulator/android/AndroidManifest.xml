@@ -15,6 +15,10 @@
 	<!-- Clickwheel vibration -->
 	<uses-permission android:name="android.permission.VIBRATE" />
 
+	<!-- The camera plugin -->
+	<uses-permission android:name="android.permission.CAMERA" />
+	<uses-feature android:name="android.hardware.camera" android:required="false" />
+
 	<!-- Keep playing in the background -->
 	<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
