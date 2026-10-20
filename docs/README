@@ -61,4 +61,40 @@ directories and create a setup for each target:
    $ cd build-xduoox3
    $ ../tools/configure
 
+Build The Android Simulator
+
+The iPod Video simulator also runs as an Android app, with the clickwheel
+working by touch. See uisimulator/android/README for the details.
+
+1. Install the Android SDK with build-tools, platforms;android-35 and an NDK
+   (r27 or later), for example with Android Studio's SDK Manager or with
+   sdkmanager. You also need a JDK, CMake and curl.
+
+   $ sdkmanager "build-tools;35.0.0" "platforms;android-35" "ndk;28.2.13676358"
+
+2. configure finds the SDK in ~/Android/Sdk (or $ANDROID_HOME) and uses its
+   newest NDK. If yours are elsewhere, tell it where:
+
+   $ export ANDROID_SDK_PATH=~/Android/Sdk
+   $ export ANDROID_NDK_PATH=~/Android/Sdk/ndk/<version>
+
+3. Create a build directory and pick target 202, "Android iPod sim". The first
+   time, configure downloads SDL2 and builds it into the build directory.
+
+   $ mkdir build-android
+   $ cd build-android
+   $ ../tools/configure --target=androidsim
+
+4. Build the simulator and its files, then package them as an APK.
+
+   $ make
+   $ make install
+   $ ../uisimulator/android/build-apk.sh
+
+5. Install rockbox-sim.apk on your phone, allow it access to all files when
+   it asks, and *smile*. Your phone's storage is the player's disk, and
+   Rockbox keeps its own files in /sdcard/Rockbox/.rockbox.
+
+   $ adb install -r rockbox-sim.apk
+
 Questions anyone? Ask on the mailing list or on IRC. We'll be happy to help you!
