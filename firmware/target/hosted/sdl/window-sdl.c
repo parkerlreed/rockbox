@@ -276,7 +276,7 @@ static void load_skin_colour(void)
     apply_skin_colour();
 }
 
-/* Vector device image (skin.svg, see uisimulator/android/skins), drawn
+/* Vector device image (skin.svg, see uisimulator/skins), drawn
    sharp at the window's resolution. Runs of shapes whose group ids start
    with "body", "wheel" or "label" are drawn in white into their own
    layers and coloured when rendering, so colour changes are instant. */

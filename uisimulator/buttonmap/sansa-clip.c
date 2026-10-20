@@ -70,7 +70,8 @@ int key_to_button(int keyboard_button)
 }
 
 #if defined(SANSA_CLIPZIP) && defined(HAVE_SIM_ANDROID)
-/* The buttons of skins/sansaclipzip.svg, as rectangles around x, y */
+/* The buttons of uisimulator/skins/sansaclipzip.svg, as rectangles around
+   x, y */
 struct button_map bm[] = {
     { SDLK_KP_5,        80, 210, BM_RECT(50, 16), "Select" }, /* the pill */
     { SDLK_KP_MULTIPLY, 31, 170, BM_RECT(26, 24), "Home" },   /* the tab */

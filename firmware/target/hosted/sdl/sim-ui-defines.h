@@ -66,15 +66,15 @@
 #define UI_LCD_POSX                 19 /* x position of lcd */
 #define UI_LCD_POSY                 14 /* y position of lcd */
 
-#elif defined(IPOD_MINI2G) && defined(__ANDROID__)
-/* uisimulator/android/skins/ipodmini2g.svg, with the real proportions */
+#elif defined(IPOD_MINI2G)
+/* uisimulator/skins/ipodmini2g.svg, with the real proportions */
 #define UI_TITLE                    "iPod mini"
 #define UI_WIDTH                    212 /* width of GUI window */
 #define UI_HEIGHT                   384 /* height of GUI window */
 #define UI_LCD_POSX                 37 /* x position of lcd */
 #define UI_LCD_POSY                 28 /* y position of lcd */
 
-#elif defined(IPOD_MINI) || defined(IPOD_MINI2G)
+#elif defined(IPOD_MINI)
 #define UI_TITLE                    "iPod mini"
 #define UI_WIDTH                    191 /* width of GUI window */
 #define UI_HEIGHT                   365 /* height of GUI window */

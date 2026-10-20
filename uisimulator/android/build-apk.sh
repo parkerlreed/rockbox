@@ -99,8 +99,8 @@ pack_model() {
         cp "$dir/UI256.bmp" "$dest/"
     fi
     # Vector device image, drawn instead where there is one (window-sdl.c)
-    if [ -f "$SRCDIR/skins/$model.svg" ]; then
-        cp "$SRCDIR/skins/$model.svg" "$dest/skin.svg"
+    if [ -f "$ROOTDIR/uisimulator/skins/$model.svg" ]; then
+        cp "$ROOTDIR/uisimulator/skins/$model.svg" "$dest/skin.svg"
     fi
     (cd "$dest/simdisk" && find .rockbox -name '*.rock' -o -name '*.codec' -o -name '*.ovl') |
     while read -r f; do
