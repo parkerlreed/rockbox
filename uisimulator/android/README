@@ -16,6 +16,26 @@ are kept in /sdcard/Rockbox/<model>/.rockbox instead of at the root (see
 uisimulator/common/filesystem-sim.c), unpacked there on first run and after
 updates. The device images are the SVGs in uisimulator/skins.
 
+Plugins > Applications > camera shows the phone's camera live, at the
+screen's own size and colours: four dithered greys on the iPod mini, like
+a Game Boy Camera, and colour on the others.
+
+    Select          take a photo
+    Left / Right    switch between the rear and front cameras
+    Wheel, Up/Down  brightness
+    Play, Vol, A    on colour screens, switch between colour and a Game Boy
+                    mode in the original Game Boy's four greens (iPod
+                    Video, Clip Zip, Gigabeat); on the mini, dithering
+                    on/off
+    Menu, Home      quit
+
+A photo is the picture as it is on the screen, saved as a PNG in
+/sdcard/DCIM/Rockbox, scaled up in whole pixels to about 480 high, and
+added to the gallery. The app asks for the camera permission the first
+time. SimCamera.java runs the camera with Camera2 and hands each frame to
+firmware/target/hosted/sdl/camera-sdl.c, which turns it upright and crops
+it to the screen for the plugin (apps/plugins/camera.c).
+
 Only arm64 (aarch64) is supported.
 
 * Prerequisites
