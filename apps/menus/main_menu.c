@@ -503,6 +503,14 @@ static int main_menu_config(void)
 MENUITEM_FUNCTION(main_menu_config_item, 0, ID2P(LANG_MAIN_MENU),
                   main_menu_config, NULL, Icon_Rockbox);
 
+#ifdef HAVE_SIM_HAPTICS
+/* Settings for the simulator running on Android */
+MENUITEM_SETTING(clickwheel_vibration, &global_settings.clickwheel_vibration,
+                 NULL);
+MAKE_MENU(android_menu, ID2P(LANG_ANDROID), 0, Icon_System_menu,
+          &clickwheel_vibration);
+#endif
+
 /***********************************/
 /*    MAIN MENU                    */
 
@@ -518,6 +526,9 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         &timedate_item,
 #endif
         &main_menu_config_item,
+#ifdef HAVE_SIM_HAPTICS
+        &android_menu,
+#endif
         &manage_settings,
         );
 /*    MAIN MENU                    */

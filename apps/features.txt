@@ -12,6 +12,10 @@ accessory_supply
 agc
 #endif
 
+#if defined(SIMULATOR) && defined(__ANDROID__)
+android_sim
+#endif
+
 #if defined(HAVE_RTC_ALARM)
 alarm
 #endif

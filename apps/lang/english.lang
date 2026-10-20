@@ -17299,3 +17299,37 @@
     recording_remote: "remote recording screen skin"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_ANDROID
+  desc: settings menu of the simulator running on Android
+  user: core
+  <source>
+    *: none
+    android_sim: "Android"
+  </source>
+  <dest>
+    *: none
+    android_sim: "Android"
+  </dest>
+  <voice>
+    *: none
+    android_sim: "Android"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLICKWHEEL_VIBRATION
+  desc: in the Android settings menu; vibrating the phone as the clickwheel turns and clicks
+  user: core
+  <source>
+    *: none
+    android_sim: "Clickwheel Vibration"
+  </source>
+  <dest>
+    *: none
+    android_sim: "Clickwheel Vibration"
+  </dest>
+  <voice>
+    *: none
+    android_sim: "Clickwheel Vibration"
+  </voice>
+</phrase>

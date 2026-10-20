@@ -34,6 +34,7 @@
 #include "crc32.h"
 #include "sound.h"
 #include "settings.h"
+#include "button.h"
 #ifdef HAVE_COMPOSITE_VIDEO_OUT
 #include "videoout.h"
 #endif
@@ -899,6 +900,9 @@ void settings_apply(bool read_disk)
 {
     logf("%s", __func__);
     int rc;
+#ifdef HAVE_SIM_HAPTICS
+    sim_haptics_set(global_settings.clickwheel_vibration);
+#endif
     CHART(">set_codepage");
     set_codepage(global_settings.default_codepage);
     CHART("<set_codepage");

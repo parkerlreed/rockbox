@@ -141,6 +141,50 @@ static void scrollwheel_event(int x, int y)
 }
 #endif
 
+#ifdef HAVE_SIM_HAPTICS
+#include <jni.h>
+
+/* Vibrates the phone like the clickwheel's clicker, see
+   RockboxSimActivity.haptic() */
+enum { HAPTIC_TICK, HAPTIC_CLICK };
+static int haptics_strength = 2;
+
+void sim_haptics_set(int strength)
+{
+    haptics_strength = strength;
+}
+
+static void haptic(int kind)
+{
+    static jclass activity_class;
+    static jmethodID haptic_method;
+
+    if (!haptics_strength)
+        return;
+    JNIEnv *env = SDL_AndroidGetJNIEnv();
+    if (!env)
+        return;
+    if (!activity_class)
+    {
+        jobject activity = SDL_AndroidGetActivity();
+        if (!activity)
+            return;
+        jclass cls = (*env)->GetObjectClass(env, activity);
+        haptic_method = (*env)->GetStaticMethodID(env, cls, "haptic", "(II)V");
+        activity_class = (*env)->NewGlobalRef(env, cls);
+        (*env)->DeleteLocalRef(env, cls);
+        (*env)->DeleteLocalRef(env, activity);
+    }
+    if (haptic_method)
+        (*env)->CallStaticVoidMethod(env, activity_class, haptic_method,
+                                     kind, haptics_strength);
+    if ((*env)->ExceptionCheck(env))
+        (*env)->ExceptionClear(env);
+}
+#else
+#define haptic(kind)
+#endif /* HAVE_SIM_HAPTICS */
+
 #ifdef HAVE_SIM_TOUCHWHEEL
 /* Emulates the touch-sensitive clickwheel with the mouse or a touchscreen.
  * Scrolling follows the clickwheel driver in
@@ -273,6 +317,7 @@ static void touchwheel_motion(int x, int y, Uint32 ms)
     tw_dir = dir;
     tw_pos = pos;
     tw_last_ms = ms;
+    haptic(HAPTIC_TICK);
 
 #ifdef HAVE_BACKLIGHT
     backlight_on();
@@ -291,6 +336,7 @@ static bool touchwheel_up(void)
     case TW_TOUCHED:
         /* quick tap: click briefly, long enough to pass debouncing */
         tw_tap_key = tw_key;
+        haptic(HAPTIC_CLICK);
         button_event(tw_tap_key, true);
         tw_start_timer(TW_TIMER_TAP_RELEASE, TW_TAP_MS);
         break;
@@ -315,6 +361,7 @@ static void touchwheel_timer(int code)
     {
         /* finger held still: click and hold until it lifts */
         tw_state = TW_PRESSED;
+        haptic(HAPTIC_CLICK);
         button_event(tw_key, true);
     }
 }
@@ -378,6 +425,7 @@ static void mouse_event(SDL_MouseButtonEvent *event, bool button_up)
             if ( background ) {
                 xybutton = xy2button( event->x, event->y );
                 if( xybutton ) {
+                    haptic(HAPTIC_CLICK);
                     button_event( xybutton, true );
                     break;
                 }

@@ -24,6 +24,9 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import android.os.VibratorManager;
 import android.util.Log;
 
 import java.io.File;
@@ -42,6 +45,7 @@ import org.libsdl.app.SDLActivity;
 public class RockboxSimActivity extends SDLActivity
 {
     private static final String TAG = "RockboxSim";
+    private static Vibrator vibrator;
     private File root;
     private File rockboxHome;
 
@@ -59,6 +63,7 @@ public class RockboxSimActivity extends SDLActivity
             Log.e(TAG, "unpacking the simdisk failed", e);
         }
         super.onCreate(savedInstanceState);
+        setUpVibrator();
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(
                 Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
             requestPermissions(new String[] {
@@ -71,6 +76,29 @@ public class RockboxSimActivity extends SDLActivity
     {
         stopService(new Intent(this, RockboxSimService.class));
         super.onDestroy();
+    }
+
+    private void setUpVibrator()
+    {
+        vibrator = Build.VERSION.SDK_INT >= 31
+            ? getSystemService(VibratorManager.class).getDefaultVibrator()
+            : (Vibrator)getSystemService(VIBRATOR_SERVICE);
+        if (vibrator != null && !vibrator.hasVibrator())
+            vibrator = null;
+    }
+
+    /* Called from the simulator (button-sdl.c) as the clickwheel turns
+     * (kind 0) or clicks (kind 1); strength 1 to 3. Short pulses at a set
+     * amplitude are firmer than the predefined effects on many phones. */
+    static void haptic(int kind, int strength)
+    {
+        if (vibrator == null)
+            return;
+        int ms = kind == 1 ? 20 : 10;
+        int amplitude = vibrator.hasAmplitudeControl()
+            ? Math.round(255 * (0.25f + strength * 0.25f)) /* weak half, strong full */
+            : VibrationEffect.DEFAULT_AMPLITUDE;
+        vibrator.vibrate(VibrationEffect.createOneShot(ms, amplitude));
     }
 
     /* Colour of the device body and centre button, see window-sdl.c */
