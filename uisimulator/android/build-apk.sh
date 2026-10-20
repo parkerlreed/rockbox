@@ -7,19 +7,23 @@
 #                     \/            \/     \/    \/            \/
 #
 # Packages an --android-sim simulator build as rockbox-sim.apk.
-# Run from the build directory after "make" and "make install".
-# See uisimulator/android/README.
+# Run from the build directory after "make" and "make install", which also
+# holds the SDL2 that configure built. See uisimulator/android/README.
 
 set -e
 
-: "${ANDROID_SDK_PATH:?set ANDROID_SDK_PATH}"
-: "${ANDROID_NDK_PATH:?set ANDROID_NDK_PATH}"
-: "${ANDROID_SDL2_PREFIX:?set ANDROID_SDL2_PREFIX}"
-: "${ANDROID_SDL2_SOURCE:?set ANDROID_SDL2_SOURCE to the SDL2 source tree}"
 
 SRCDIR=$(cd "$(dirname "$0")" && pwd)
 ROOTDIR=$(cd "$SRCDIR/../.." && pwd)
 BUILDDIR=$(pwd)
+SDL2=$BUILDDIR/sdl2-android
+
+# The SDK and NDK configure found, unless overridden
+makevar() { sed -n "s/^export $1=//p" "$BUILDDIR/Makefile" 2>/dev/null; }
+ANDROID_SDK_PATH=${ANDROID_SDK_PATH:-$(makevar ANDROID_SDK_PATH)}
+ANDROID_NDK_PATH=${ANDROID_NDK_PATH:-$(makevar ANDROID_NDK_PATH)}
+: "${ANDROID_SDK_PATH:?set ANDROID_SDK_PATH, or re-run configure}"
+: "${ANDROID_NDK_PATH:?set ANDROID_NDK_PATH, or re-run configure}"
 OUT=$BUILDDIR/apk
 ABI=arm64-v8a
 PLATFORM=android-35
@@ -43,7 +47,7 @@ mkdir -p "$OUT/lib/$ABI" "$OUT/classes" "$OUT/assets" "$OUT/res"
 
 echo "Native libraries"
 "$STRIP" --strip-unneeded -o "$OUT/lib/$ABI/libmain.so" "$BUILDDIR/libmain.so"
-"$STRIP" --strip-unneeded -o "$OUT/lib/$ABI/libSDL2.so" "$ANDROID_SDL2_PREFIX/lib/libSDL2.so"
+"$STRIP" --strip-unneeded -o "$OUT/lib/$ABI/libSDL2.so" "$SDL2/prefix/lib/libSDL2.so"
 
 # Codecs and plugins go in as libraries, named the way
 # android_lib_path() in uisimulator/common/load_code-sim.c expects.
@@ -70,7 +74,7 @@ echo "Assets"
 
 echo "Java"
 javac -nowarn --release 11 -Xlint:-options -classpath "$ANDROID_JAR" -d "$OUT/classes" \
-    $(find "$ANDROID_SDL2_SOURCE/android-project/app/src/main/java" "$SRCDIR/src" -name '*.java')
+    $(find "$SDL2/src/android-project/app/src/main/java" "$SRCDIR/src" -name '*.java')
 "$BUILD_TOOLS/d8" --min-api 26 --lib "$ANDROID_JAR" --output "$OUT" \
     $(find "$OUT/classes" -name '*.class')
 

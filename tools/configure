@@ -315,13 +315,43 @@ simcc () {
  if [ "$ARG_ANDROID_SIM" = "1" ]; then
    # The simulator as the native library of an SDL Android app,
    # see uisimulator/android/README
-   if [ ! -d "$ANDROID_NDK_PATH" ] || [ ! -x "$ANDROID_SDL2_PREFIX/bin/sdl2-config" ]; then
-     echo "ERROR: Set ANDROID_NDK_PATH to an Android NDK (r27 or later) and"
-     echo "ANDROID_SDL2_PREFIX to SDL2 built and installed for Android."
+   # Find the SDK and NDK where Android Studio and sdkmanager put them
+   if [ -z "$ANDROID_SDK_PATH" ]; then
+     for d in "$ANDROID_HOME" "$ANDROID_SDK_ROOT" "$HOME/Android/Sdk"; do
+       if [ -n "$d" ] && [ -d "$d/platforms" ]; then
+         ANDROID_SDK_PATH="$d"
+         break
+       fi
+     done
+   fi
+   if [ -z "$ANDROID_NDK_PATH" ]; then
+     if [ -n "$ANDROID_NDK_HOME" ]; then
+       ANDROID_NDK_PATH="$ANDROID_NDK_HOME"
+     elif [ -d "$ANDROID_SDK_PATH/ndk" ]; then
+       ANDROID_NDK_PATH=`ls -d "$ANDROID_SDK_PATH"/ndk/* 2>/dev/null | sort -V | tail -n 1`
+     fi
+   fi
+   if [ ! -x "$ANDROID_NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" ] ||
+      [ ! -f "$ANDROID_SDK_PATH/platforms/android-35/android.jar" ] ||
+      [ ! -d "$ANDROID_SDK_PATH/build-tools" ]; then
+     echo "ERROR: The Android simulator needs the Android SDK, with build-tools,"
+     echo "platforms;android-35 and an NDK (r27 or later) installed, e.g. with:"
+     echo "  sdkmanager \"build-tools;35.0.0\" \"platforms;android-35\" \"ndk;28.2.13676358\""
+     echo "If they are not in ~/Android/Sdk, set ANDROID_SDK_PATH and ANDROID_NDK_PATH:"
+     echo "  export ANDROID_SDK_PATH=~/Android/Sdk"
+     echo "  export ANDROID_NDK_PATH=~/Android/Sdk/ndk/<version>"
+     echo "Currently: ANDROID_SDK_PATH=${ANDROID_SDK_PATH:-(not found)}"
+     echo "           ANDROID_NDK_PATH=${ANDROID_NDK_PATH:-(not found)}"
      exit 1
    fi
+   export ANDROID_SDK_PATH ANDROID_NDK_PATH
    echo "Android simulator build"
+   echo "Using Android SDK $ANDROID_SDK_PATH"
+   echo "Using Android NDK $ANDROID_NDK_PATH"
    ANDROID_PLATFORM_VERSION=26
+   # SDL2 is downloaded and built into the build dir
+   "$rootdir/uisimulator/android/build-sdl2.sh" "$pwd/sdl2-android" \
+       $ANDROID_PLATFORM_VERSION || exit 1
    ndkbin="$ANDROID_NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin"
    CC="$ndkbin/aarch64-linux-android$ANDROID_PLATFORM_VERSION-clang"
    CPP="$CC -E"
@@ -338,7 +368,7 @@ simcc () {
    libgcc="" # clang links compiler-rt itself
    endian="little"
    ARG_THREAD_SUPPORT=1
-   PATH="$ANDROID_SDL2_PREFIX/bin:$PATH"
+   PATH="$pwd/sdl2-android/prefix/bin:$PATH"
  elif [ "$win32crosscompile" = "yes" ]; then
    # We are crosscompiling
    # add cross-compiler option(s)
@@ -1593,7 +1623,8 @@ help() {
                       Enable -fstack-protector-MODE option. With no MODE,
                       enables the normal -fstack-protector option.
     --32-bit          Force a 32-bit simulator (use with --sdl-threads for duke3d)
-    --android-sim     Build the simulator for Android (see uisimulator/android/README)
+    --android-sim     Build the simulator for Android (see uisimulator/android/README);
+                      target 202 is this for the iPod Video
     --prefix          Target installation directory
     --compiler-prefix Override compiler prefix (inherently dangerous)
     --help            Shows this message (must not be used with other options)
@@ -1780,8 +1811,8 @@ cat <<EOF
  ==Sony==                  ==Application==
  219) NWZ-E350 series      200) SDL (Generic)    ==IHIFI==
  220) NWZ-E370/E380 series 201) Android (ARM)    230) 760
- 221) NWZ-E360 series      209) Anbernic RG Nano 231) 770
- 222) NWZ-E450 series                            232) 770C
+ 221) NWZ-E360 series      202) Android iPod sim 231) 770
+ 222) NWZ-E450 series      209) Anbernic RG Nano 232) 770C
  223) NWZ-E460 series      ==AGPTek==            233) 800
  224) NWZ-E470 series      239) Rocker (native)  234) 960
  225) NWZ-E580 series      240) Rocker (hosted)
@@ -1807,6 +1838,15 @@ EOF
   buildfor=`input`;
 
 fi
+
+# The Android simulator is listed as a target of its own: the iPod Video
+# simulator built for Android, see uisimulator/android/README
+case $buildfor in
+  202|androidsim)
+    buildfor=ipodvideo
+    ARG_TYPE=R
+    ;;
+esac
   # Set of tools built for all target platforms:
   toolset="rdf2binary convbdf codepages"
 
@@ -4431,7 +4471,7 @@ fi
       do_bootloader
       echo "Bootloader build selected"
       ;;
-    [Ss])
+    [SsRr])
       if [ "$modelname" = "sdlapp" ]; then
           echo "Do not use sdlapp for simulator builds; it is already a native SDL application."
           exit 8
@@ -4440,7 +4480,16 @@ fi
       simulator="yes"
       extradefines="$extradefines -DSIMULATOR -DHAVE_TEST_PLUGINS"
       flash=""
-      echo "Simulator build selected"
+      case $btype in
+        [Rr])
+          # target 202, or --android-sim; see uisimulator/android/README
+          ARG_ANDROID_SIM=1
+          echo "Android simulator build selected"
+          ;;
+        *)
+          echo "Simulator build selected"
+          ;;
+      esac
       ;;
     [Aa]*)
       echo "Advanced build selected"
