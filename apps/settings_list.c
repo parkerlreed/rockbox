@@ -2359,6 +2359,13 @@ const struct settings_list settings[] = {
                 3, "list_accel_wait", UNIT_SEC, 1, 10, 1,
                 scanaccel_formatter, NULL, NULL),
 #endif /* HAVE_WHEEL_ACCELERATION */
+#ifdef HAVE_SIM_HAPTICS
+    CHOICE_SETTING(0, clickwheel_vibration, LANG_CLICKWHEEL_VIBRATION, 2,
+                   "clickwheel vibration", "off,weak,moderate,strong",
+                   sim_haptics_set, 4,
+                   ID2P(LANG_OFF), ID2P(LANG_WEAK), ID2P(LANG_MODERATE),
+                   ID2P(LANG_STRONG)),
+#endif
     /* keyclick */
 #ifdef HAVE_HARDWARE_CLICK
     CHOICE_SETTING(0, keyclick, LANG_KEYCLICK_SOFTWARE, 0,

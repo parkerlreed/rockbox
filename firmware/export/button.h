@@ -145,4 +145,9 @@ void button_set_sw_poweroff_state(bool en);
 bool button_get_sw_poweroff_state(void);
 #endif
 
+#ifdef HAVE_SIM_HAPTICS
+/* Clickwheel vibration: 0 off, 1-3 weak to strong */
+void sim_haptics_set(int strength);
+#endif
+
 #endif /* _BUTTON_H_ */

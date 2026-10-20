@@ -409,6 +409,9 @@ struct user_settings
     /* Misc. swcodec */
     int  beep;              /* system beep volume when changing tracks etc. */
     int  keyclick;          /* keyclick volume */
+#ifdef HAVE_SIM_HAPTICS
+    int  clickwheel_vibration; /* off, weak, moderate, strong */
+#endif
     int  keyclick_repeats;  /* keyclick on repeats */
     bool dithering_enabled;
 #ifdef HAVE_PITCHCONTROL
