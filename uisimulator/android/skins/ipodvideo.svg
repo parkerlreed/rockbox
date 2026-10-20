@@ -7,17 +7,18 @@
        "wheel" or "label" in white and colours it when rendering, so the
        colour can change instantly; it fills {body}, {wheel}, {button} and
        {label} with white. Other groups are drawn as they are. -->
+  <!-- nanosvg only draws gradients in user space properly -->
   <defs>
-    <linearGradient id="sheen" x1="0" y1="0" x2="0.35" y2="1">
+    <linearGradient id="sheen" x1="0" y1="0" x2="122" y2="591" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#ffffff" stop-opacity="0.14"/>
       <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.02"/>
       <stop offset="1" stop-color="#000000" stop-opacity="0.08"/>
     </linearGradient>
-    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="591" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
       <stop offset="1" stop-color="#000000" stop-opacity="0.25"/>
     </linearGradient>
-    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="glass" x1="0" y1="6" x2="0" y2="258" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#2a2a2e"/>
       <stop offset="1" stop-color="#050505"/>
     </linearGradient>
