@@ -2366,6 +2366,10 @@ const struct settings_list settings[] = {
                    ID2P(LANG_OFF), ID2P(LANG_WEAK), ID2P(LANG_MODERATE),
                    ID2P(LANG_STRONG)),
 #endif
+#ifdef HAVE_SIM_RAINBOW
+    OFFON_SETTING(0, sim_rainbow, LANG_ANDROID_RAINBOW, false, "rainbow",
+                  sim_rainbow_set),
+#endif
     /* keyclick */
 #ifdef HAVE_HARDWARE_CLICK
     CHOICE_SETTING(0, keyclick, LANG_KEYCLICK_SOFTWARE, 0,

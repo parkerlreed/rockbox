@@ -1540,4 +1540,11 @@ Lyre prototype 1 */
 #endif
 #endif
 
+/* Settings > Android > Rainbow cycles the colour of a clickwheel iPod's
+   SVG face */
+#if defined(HAVE_SIM_ANDROID) && defined(HAVE_SCROLLWHEEL) && \
+    (CONFIG_KEYPAD == IPOD_4G_PAD)
+#define HAVE_SIM_RAINBOW
+#endif
+
 #endif /* __CONFIG_H__ */

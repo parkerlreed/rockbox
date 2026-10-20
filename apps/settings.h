@@ -412,6 +412,9 @@ struct user_settings
 #ifdef HAVE_SIM_HAPTICS
     int  clickwheel_vibration; /* off, weak, moderate, strong */
 #endif
+#ifdef HAVE_SIM_RAINBOW
+    bool sim_rainbow;          /* cycle the device image's colour */
+#endif
     int  keyclick_repeats;  /* keyclick on repeats */
     bool dithering_enabled;
 #ifdef HAVE_PITCHCONTROL

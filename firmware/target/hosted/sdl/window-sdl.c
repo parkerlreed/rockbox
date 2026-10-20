@@ -440,6 +440,51 @@ out:
         nsvgDelete(image);
 }
 
+#ifdef HAVE_SIM_RAINBOW
+/* Settings > Android > Rainbow: the SVG face's colour goes round the hue
+   circle while Rockbox carries on */
+#define RAINBOW_FRAME_MS 40
+#define RAINBOW_TURN_MS  7200
+
+static volatile bool rainbow;
+static SDL_TimerID rainbow_timer;
+
+static Uint32 rainbow_tick(Uint32 interval, void *param)
+{
+    (void)param;
+    if (!rainbow)
+        return 0;
+    sdl_window_request_render();
+    return interval;
+}
+
+void sim_rainbow_set(bool on)
+{
+    rainbow = on;
+    if (on && !rainbow_timer)
+        rainbow_timer = SDL_AddTimer(RAINBOW_FRAME_MS, rainbow_tick, NULL);
+    else if (!on && rainbow_timer)
+    {
+        SDL_RemoveTimer(rainbow_timer);
+        rainbow_timer = 0;
+    }
+    sdl_window_request_render();
+}
+
+static SDL_Color rainbow_colour(void)
+{
+    const float s = 0.55f, v = 0.9f;
+    float h = (SDL_GetTicks() % RAINBOW_TURN_MS) * 6.f / RAINBOW_TURN_MS;
+    int i = (int)h;
+    float f = h - i;
+    float p = v * (1 - s), q = v * (1 - s * f), t = v * (1 - s * (1 - f));
+    float rgb[6][3] = { { v, t, p }, { q, v, p }, { p, v, t },
+                        { p, q, v }, { t, p, v }, { v, p, q } };
+    return (SDL_Color){ rgb[i % 6][0] * 255, rgb[i % 6][1] * 255,
+                        rgb[i % 6][2] * 255, 255 };
+}
+#endif /* HAVE_SIM_RAINBOW */
+
 /* Draws the SVG device image and the LCD; false without an SVG skin */
 static bool render_svg_skin(void)
 {
@@ -457,6 +502,10 @@ static bool render_svg_skin(void)
     SDL_Color body = { skin_tint.r, skin_tint.g, skin_tint.b, 255 };
     if (!skin_tint.opacity)
         body = (SDL_Color){ 0xc9, 0xcb, 0xcf, 255 };
+#ifdef HAVE_SIM_RAINBOW
+    if (rainbow)
+        body = rainbow_colour();
+#endif
     bool dark = luminance(body.r, body.g, body.b) < 80;
     SDL_Color wheel = dark ? (SDL_Color){ 0x2f, 0x2f, 0x32, 255 }
                            : (SDL_Color){ 0xf0, 0xf0, 0xf0, 255 };

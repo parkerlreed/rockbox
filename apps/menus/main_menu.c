@@ -586,10 +586,16 @@ MENUITEM_FUNCTION(android_model_item, 0, ID2P(LANG_ANDROID_MODEL),
 MENUITEM_SETTING(clickwheel_vibration, &global_settings.clickwheel_vibration,
                  NULL);
 #endif
+#ifdef HAVE_SIM_RAINBOW
+MENUITEM_SETTING(sim_rainbow, &global_settings.sim_rainbow, NULL);
+#endif
 MAKE_MENU(android_menu, ID2P(LANG_ANDROID), 0, Icon_System_menu,
           &android_model_item,
 #ifdef HAVE_SIM_HAPTICS
           &clickwheel_vibration,
+#endif
+#ifdef HAVE_SIM_RAINBOW
+          &sim_rainbow,
 #endif
           );
 #endif
