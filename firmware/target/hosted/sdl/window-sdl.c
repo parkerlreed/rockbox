@@ -42,18 +42,47 @@ static SDL_Surface  *picture_surface;
 
 #ifdef HAVE_SIM_TOUCHWHEEL
 /* Colours for the device body and centre button; the clickwheel ring and
-   the screen keep theirs. The first keeps the image as it is. */
+   the screen keep theirs. Each comes light, normal and dark, after the
+   original image (skin_colour 0). */
 static const struct { Uint8 r, g, b; } skin_colours[] = {
-    {   0,   0,   0 }, /* original */
     {  36,  36,  40 }, /* black */
     { 196, 200, 206 }, /* silver */
     { 242, 160, 190 }, /* pink */
     { 120, 170, 230 }, /* blue */
     { 150, 210, 120 }, /* green */
     { 200,  30,  40 }, /* red */
+    { 150, 100, 200 }, /* purple */
+    { 240, 210,  80 }, /* yellow */
+    { 240, 140,  60 }, /* orange */
+    { 215, 185, 120 }, /* gold */
+    {  70, 175, 175 }, /* teal */
 };
+#define SKIN_SHADES 3 /* light, normal, dark */
+#define SKIN_COLOURS (1 + SKIN_SHADES * (int)SDL_arraysize(skin_colours))
 #define SKIN_COLOUR_FILE "skincolour.txt"
 static int skin_colour;
+
+/* Colour for skin_colour > 0, shaded */
+static void skin_colour_rgb(float *r, float *g, float *b)
+{
+    int shade = (skin_colour - 1) % SKIN_SHADES;
+    int i = (skin_colour - 1) / SKIN_SHADES;
+    *r = skin_colours[i].r;
+    *g = skin_colours[i].g;
+    *b = skin_colours[i].b;
+    if (shade == 0) /* light: towards white */
+    {
+        *r += (255 - *r) * 0.35f;
+        *g += (255 - *g) * 0.35f;
+        *b += (255 - *b) * 0.35f;
+    }
+    else if (shade == 2) /* dark */
+    {
+        *r *= 0.65f;
+        *g *= 0.65f;
+        *b *= 0.65f;
+    }
+}
 static SDL_Surface *skin_image; /* as loaded, picture_surface is tinted */
 
 static int luminance(Uint8 r, Uint8 g, Uint8 b)
@@ -109,6 +138,8 @@ static void apply_skin_colour(void)
                 }
             }
         float ref = count ? (float)sum / count : 255;
+        float cr, cg, cb;
+        skin_colour_rgb(&cr, &cg, &cb);
 
         for (int y = 0; y < s->h; y++)
             for (int x = 0; x < s->w; x++)
@@ -119,9 +150,9 @@ static void apply_skin_colour(void)
                 Uint32 *p = &px[y * stride + x];
                 SDL_GetRGB(*p, s->format, &r, &g, &b);
                 float k = luminance(r, g, b) / ref;
-                float tr = SDL_min(255.f, skin_colours[skin_colour].r * k);
-                float tg = SDL_min(255.f, skin_colours[skin_colour].g * k);
-                float tb = SDL_min(255.f, skin_colours[skin_colour].b * k);
+                float tr = SDL_min(255.f, cr * k);
+                float tg = SDL_min(255.f, cg * k);
+                float tb = SDL_min(255.f, cb * k);
                 *p = SDL_MapRGB(s->format, r + (tr - r) * w,
                                 g + (tg - g) * w, b + (tb - b) * w);
             }
@@ -136,7 +167,7 @@ void sdl_window_cycle_skin_colour(void)
 {
     if (!skin_image)
         return;
-    skin_colour = (skin_colour + 1) % (int)SDL_arraysize(skin_colours);
+    skin_colour = (skin_colour + 1) % SKIN_COLOURS;
     apply_skin_colour();
 
     FILE *f = fopen(SKIN_COLOUR_FILE, "w");
@@ -153,7 +184,7 @@ static void load_skin_colour(void)
     if (f)
     {
         if (fscanf(f, "%d", &skin_colour) != 1 || skin_colour < 0 ||
-            skin_colour >= (int)SDL_arraysize(skin_colours))
+            skin_colour >= SKIN_COLOURS)
             skin_colour = 0;
         fclose(f);
     }
