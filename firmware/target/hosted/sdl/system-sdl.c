@@ -86,7 +86,9 @@ int wps_verbose_level = 3;
  **/
 static int sdl_event_thread(void * param)
 {
-#ifdef __WIN32 /* Fails on Linux and MacOS */
+#if defined(__WIN32) || defined(__ANDROID__) /* Fails on Linux and MacOS */
+    /* On Android the renderer's GL context belongs to this thread, which
+       does all the rendering (see sdl_window_render()) */
     SDL_SetHint(SDL_HINT_WINDOWS_DPI_SCALING, "1");
     SDL_InitSubSystem(SDL_INIT_VIDEO);
     sdl_window_setup();
@@ -262,7 +264,7 @@ void system_init(void)
     }
 #endif
 
-#ifndef __WIN32  /* Fails on Windows */
+#if !defined(__WIN32) && !defined(__ANDROID__) /* in the event thread there */
     SDL_InitSubSystem(SDL_INIT_VIDEO);
 
 #if SDL_MAJOR_VERSION > 1

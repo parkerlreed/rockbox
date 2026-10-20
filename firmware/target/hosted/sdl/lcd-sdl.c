@@ -94,6 +94,14 @@ void sdl_update_rect(SDL_Surface *surface, int x_start, int y_start, int width,
 void sdl_gui_update(SDL_Surface *surface, int x_start, int y_start, int width,
                     int height, int max_x, int max_y, int ui_x, int ui_y)
 {
+#ifdef __ANDROID__
+    if (!sdl_window_is_render_thread())
+    {
+        /* the event thread redraws the whole LCD */
+        sdl_window_request_render();
+        return;
+    }
+#endif
     if (x_start + width > max_x)
         width = max_x - x_start;
     if (y_start + height > max_y)
