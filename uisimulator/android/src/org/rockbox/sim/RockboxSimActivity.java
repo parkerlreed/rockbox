@@ -20,6 +20,7 @@ package org.rockbox.sim;
 
 import android.Manifest;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -29,31 +30,47 @@ import android.os.Vibrator;
 import android.os.VibratorManager;
 import android.util.Log;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import org.libsdl.app.SDLActivity;
 
-/* Runs the simulator (libmain.so) with shared storage (/sdcard) as its
- * disk, and its own files in /sdcard/Rockbox/.rockbox (see filesystem-sim.c).
- * RockboxSimLauncher gets storage access first. */
+/* Runs the simulator of the chosen model (libmain_<model>.so) with shared
+ * storage (/sdcard) as its disk, its own files in
+ * /sdcard/Rockbox/<model>/.rockbox (see filesystem-sim.c), and its device
+ * image and colour in files/<model>. RockboxSimLauncher gets storage
+ * access first. */
 public class RockboxSimActivity extends SDLActivity
 {
     private static final String TAG = "RockboxSim";
+    private static final String PREF_MODEL = "model";
     private static Vibrator vibrator;
     private File root;
     private File rockboxHome;
+    /* the models in the APK (assets/models.txt): names and titles */
+    private final List<String> models = new ArrayList<>();
+    private final List<String> titles = new ArrayList<>();
+    private String model;
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
         root = Environment.getExternalStorageDirectory();
         rockboxHome = new File(root, "Rockbox");
+        readModels();
+        model = prefs().getString(PREF_MODEL, models.get(0));
+        if (!models.contains(model))
+            model = models.get(0);
+        moveOldFiles();
         try
         {
             unpackFiles();
@@ -113,15 +130,99 @@ public class RockboxSimActivity extends SDLActivity
     }
 
     @Override
+    protected String[] getLibraries()
+    {
+        return new String[] { "SDL2", "main_" + model };
+    }
+
+    @Override
     protected String[] getArguments()
     {
         return new String[] { "--root", root.getPath() };
     }
 
-    /* Unpack assets/files.zip once per install or update, or when
-     * .rockbox was deleted: simdisk/ goes to /sdcard/Rockbox, the rest
-     * (device image) to the private files dir. Files the simulator
-     * created (settings, database) are left alone. */
+    private SharedPreferences prefs()
+    {
+        return getSharedPreferences("rockbox", MODE_PRIVATE);
+    }
+
+    private void readModels()
+    {
+        try (BufferedReader r = new BufferedReader(
+                new InputStreamReader(getAssets().open("models.txt"))))
+        {
+            String line;
+            while ((line = r.readLine()) != null)
+            {
+                String[] f = line.split("\t", 2);
+                if (f.length == 2)
+                {
+                    models.add(f[0]);
+                    titles.add(f[1]);
+                }
+            }
+        }
+        catch (IOException e)
+        {
+            Log.e(TAG, "reading the models failed", e);
+        }
+        if (models.isEmpty())
+        {
+            models.add("ipodvideo");
+            titles.add("iPod Video");
+        }
+    }
+
+    /* Before there were several models, the iPod Video kept its files in
+       /sdcard/Rockbox/.rockbox and files/ */
+    private void moveOldFiles()
+    {
+        File old = new File(rockboxHome, ".rockbox");
+        File video = new File(rockboxHome, "ipodvideo");
+        if (old.isDirectory() && !video.exists() && video.mkdirs())
+            old.renameTo(new File(video, ".rockbox"));
+        File colour = new File(getFilesDir(), "skincolour.txt");
+        File videoFiles = new File(getFilesDir(), "ipodvideo");
+        videoFiles.mkdirs();
+        if (colour.exists())
+            colour.renameTo(new File(videoFiles, "skincolour.txt"));
+        /* each model has its own now */
+        for (String f : new String[] { "UI256.bmp", "skin.svg", "stdout.txt" })
+            new File(getFilesDir(), f).delete();
+    }
+
+    /* Called from the simulator, Settings > Android > Model: the models
+     * in the APK as "name\ttitle\n" lines */
+    public String modelList()
+    {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < models.size(); i++)
+            sb.append(models.get(i)).append('\t').append(titles.get(i)).append('\n');
+        return sb.toString();
+    }
+
+    /* A process can only run one model: shut this one down like holding
+       Play, and have the launcher, in a process of its own, start the
+       chosen one once it is gone */
+    public void switchModel(String next)
+    {
+        if (!models.contains(next))
+            return;
+        prefs().edit().putString(PREF_MODEL, next).commit();
+        startActivity(new Intent(this, RockboxSimLauncher.class)
+            .putExtra(RockboxSimLauncher.EXTRA_RESTART_AFTER,
+                      android.os.Process.myPid())
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        nativeShutDown();
+    }
+
+    static native void nativeShutDown();
+
+    /* Unpack assets/files.zip once per install or update, or when this
+     * model's .rockbox was deleted: models/<model>/simdisk/ goes to
+     * /sdcard/Rockbox/<model>, the rest of models/<model>/ (device image) to
+     * files/<model>. Files the simulator created (settings, database) are
+     * left alone. */
     private void unpackFiles() throws IOException
     {
         File dir = getFilesDir();
@@ -136,7 +237,8 @@ public class RockboxSimActivity extends SDLActivity
         {
             throw new IOException(e);
         }
-        boolean installed = new File(rockboxHome, ".rockbox/rockbox-info.txt").exists();
+        boolean installed = new File(rockboxHome,
+            model + "/.rockbox/rockbox-info.txt").exists();
         if (installed && stamp.exists() && version.equals(readFile(stamp)))
             return;
 
@@ -146,12 +248,17 @@ public class RockboxSimActivity extends SDLActivity
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null)
             {
-                String name = entry.getName();
-                File base = dir;
-                if (name.startsWith("simdisk/"))
+                /* models/<model>/simdisk/... or models/<model>/... */
+                String[] parts = entry.getName().split("/", 3);
+                if (parts.length < 3 || !parts[0].equals("models") ||
+                    !parts[1].matches("[a-z0-9]+"))
+                    continue;
+                String name = parts[2];
+                File base = new File(dir, parts[1]);
+                if (name.startsWith("simdisk/") || name.equals("simdisk"))
                 {
-                    base = rockboxHome;
-                    name = name.substring("simdisk/".length());
+                    base = new File(rockboxHome, parts[1]);
+                    name = name.substring(Math.min(name.length(), "simdisk/".length()));
                 }
                 File out = new File(base, name);
                 if (!out.getCanonicalPath().startsWith(base.getCanonicalPath() + File.separator))

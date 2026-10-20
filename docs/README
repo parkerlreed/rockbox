@@ -63,8 +63,9 @@ directories and create a setup for each target:
 
 Build The Android Simulator
 
-The iPod Video simulator also runs as an Android app, with the clickwheel
-working by touch. See uisimulator/android/README for the details.
+The iPod Video and iPod mini 2G simulators also run as an Android app, with
+the clickwheel working by touch; Settings > Android > Model switches between
+them. See uisimulator/android/README for the details.
 
 1. Install the Android SDK with build-tools, platforms;android-35 and an NDK
    (r27 or later), for example with Android Studio's SDK Manager or with
@@ -85,7 +86,8 @@ working by touch. See uisimulator/android/README for the details.
    $ cd build-android
    $ ../tools/configure
 
-4. Build the simulator and its files, then package them as an APK.
+4. Build the simulator and its files, then package them as an APK. This
+   also builds the other models, in models/ in the build directory.
 
    $ make
    $ make install
@@ -93,7 +95,7 @@ working by touch. See uisimulator/android/README for the details.
 
 5. Install rockbox-sim.apk on your phone, allow it access to all files when
    it asks, and *smile*. Your phone's storage is the player's disk, and
-   Rockbox keeps its own files in /sdcard/Rockbox/.rockbox.
+   Rockbox keeps each model's own files in /sdcard/Rockbox/<model>/.rockbox.
 
    $ adb install -r rockbox-sim.apk
 

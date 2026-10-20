@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="212" height="384" viewBox="0 0 212 384">
+  <!-- iPod mini (2G) face for the simulator, in anodised aluminium, with
+       the real proportions. The Android simulator uses this geometry (see
+       sim-ui-defines.h): LCD at 37,28 (138x110), clickwheel centred at
+       106,264 with radius 79 and centre button radius 26.5. The wheel
+       labels are in the body colour, as on the mini 2G.
+
+       window-sdl.c draws each run of groups whose ids start with "body",
+       "wheel" or "label" in white and colours it when rendering, so the
+       colour can change instantly; it fills {body}, {wheel}, {button} and
+       {label} with white. Other groups are drawn as they are. -->
+  <!-- nanosvg only draws gradients in user space properly -->
+  <defs>
+    <linearGradient id="sheen" x1="0" y1="0" x2="74" y2="384" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.02"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.08"/>
+    </linearGradient>
+    <!-- the rounded sides of the case -->
+    <linearGradient id="sides" x1="0" y1="0" x2="212" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#000000" stop-opacity="0.30"/>
+      <stop offset="0.03" stop-color="#000000" stop-opacity="0.10"/>
+      <stop offset="0.06" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="0.12" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.88" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.94" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="0.97" stop-color="#000000" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </linearGradient>
+    <linearGradient id="frame" x1="0" y1="24" x2="0" y2="142" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c9cfd4"/>
+      <stop offset="1" stop-color="#aab1b7"/>
+    </linearGradient>
+    <radialGradient id="wheelshade" cx="106" cy="264" r="79" gradientUnits="userSpaceOnUse">
+      <stop offset="0.9" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.06"/>
+    </radialGradient>
+  </defs>
+
+  <g id="body-case">
+    <rect x="0" y="0" width="212" height="384" rx="10" fill="{body}"/>
+  </g>
+
+  <g id="case-details">
+    <rect x="0" y="0" width="212" height="384" rx="10" fill="url(#sheen)"/>
+    <rect x="0" y="0" width="212" height="384" rx="10" fill="url(#sides)"/>
+    <!-- screen window around the LCD -->
+    <rect x="32" y="24" width="148" height="118" rx="3" fill="url(#frame)"/>
+    <rect x="32.5" y="24.5" width="147" height="117" rx="2.5" fill="none"
+          stroke="#000000" stroke-opacity="0.30" stroke-width="1"/>
+    <rect x="36" y="27" width="140" height="112" fill="#000000" fill-opacity="0.35"/>
+    <circle cx="106" cy="264" r="80" fill="#000000" fill-opacity="0.08"/>
+  </g>
+
+  <g id="wheel">
+    <circle cx="106" cy="264" r="79" fill="{wheel}"/>
+  </g>
+
+  <g id="wheel-details">
+    <circle cx="106" cy="264" r="79" fill="url(#wheelshade)"/>
+    <circle cx="106" cy="264" r="78.5" fill="none" stroke="#000000"
+            stroke-opacity="0.10" stroke-width="1"/>
+    <!-- centre button outline -->
+    <circle cx="106" cy="264" r="26.5" fill="none" stroke="#000000"
+            stroke-opacity="0.16" stroke-width="0.8"/>
+  </g>
+
+  <!-- labels in the body colour: the iPod Video's shapes, each moved to
+       where the mini has it -->
+  <g id="body-labels" fill="{label}">
+    <g transform="translate(106 197) scale(0.63) translate(-175 -336.5)">
+      <path d="M152,331 h2.6 l3.4,6 l3.4,-6 h2.6 v11 h-2.4 v-7 l-3,5.2 h-1.2 l-3,-5.2 v7 h-2.4 z"/>
+      <path d="M166.5,331 h7.6 v2.1 h-5.2 v2.4 h4.6 v2.1 h-4.6 v2.3 h5.3 v2.1 h-7.7 z"/>
+      <path d="M176.4,331 h2.4 l4.6,7 v-7 h2.4 v11 h-2.4 l-4.6,-7 v7 h-2.4 z"/>
+      <path d="M188.2,331 h2.4 v7 a2.6,2.6 0 0 0 5.2,0 v-7 h2.4 v7 a5,5 0 0 1 -10,0 z"/>
+    </g>
+    <g transform="translate(43 264) scale(0.88 0.60) translate(-69.25 -437)">
+      <rect x="61" y="431.5" width="2.2" height="11"/>
+      <path d="M63.5,437 l7,-5.5 v11 z"/>
+      <path d="M70.5,437 l7,-5.5 v11 z"/>
+    </g>
+    <g transform="translate(169 264) scale(0.88 0.60) translate(-278.75 -437)">
+      <path d="M270.5,431.5 l7,5.5 l-7,5.5 z"/>
+      <path d="M277.5,431.5 l7,5.5 l-7,5.5 z"/>
+      <rect x="284.8" y="431.5" width="2.2" height="11"/>
+    </g>
+    <g transform="translate(106 331) scale(0.93 0.66) translate(-173 -540)">
+      <path d="M163.5,534.5 l8,5.5 l-8,5.5 z"/>
+      <rect x="175" y="534.5" width="2.6" height="11"/>
+      <rect x="180" y="534.5" width="2.6" height="11"/>
+    </g>
+  </g>
+</svg>

@@ -25,14 +25,26 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.widget.Toast;
 
-/* Gets access to shared storage, the simulator's disk, before
- * starting the simulator */
+import java.io.File;
+
+/* Gets access to shared storage, the simulator's disk, before starting
+ * the simulator. Runs in a process of its own, so that it can also start
+ * the simulator again once the previous one has quit, when switching
+ * models (see RockboxSimActivity.switchModel()). */
 public class RockboxSimLauncher extends Activity
 {
+    static final String EXTRA_RESTART_AFTER = "restart_after_pid";
+    private static final int RESTART_WAIT_MS = 10000;
+
     private boolean asked = false;
+    private int waitForPid;
+    private long waitUntil;
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     static boolean hasStorageAccess(Activity activity)
     {
@@ -43,9 +55,26 @@ public class RockboxSimLauncher extends Activity
     }
 
     @Override
+    protected void onCreate(android.os.Bundle savedInstanceState)
+    {
+        super.onCreate(savedInstanceState);
+        waitForPid = getIntent().getIntExtra(EXTRA_RESTART_AFTER, 0);
+        waitUntil = System.currentTimeMillis() + RESTART_WAIT_MS;
+    }
+
+    @Override
     protected void onResume()
     {
         super.onResume();
+        /* the simulator of the previous model must be gone first, as a
+           process can only hold one */
+        if (waitForPid != 0 && new File("/proc/" + waitForPid).exists() &&
+            System.currentTimeMillis() < waitUntil)
+        {
+            handler.postDelayed(this::onResume, 100);
+            return;
+        }
+        waitForPid = 0;
         if (hasStorageAccess(this))
         {
             startActivity(new Intent(this, RockboxSimActivity.class));

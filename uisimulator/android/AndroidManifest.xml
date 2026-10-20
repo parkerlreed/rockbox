@@ -28,7 +28,10 @@
 		android:requestLegacyExternalStorage="true"
 		android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
 
+		<!-- in a process of its own, to restart the simulator when
+		     switching models, see RockboxSimActivity.switchModel() -->
 		<activity android:name=".RockboxSimLauncher"
+			android:process=":launcher"
 			android:exported="true"
 			android:theme="@android:style/Theme.Translucent.NoTitleBar">
 			<intent-filter>
