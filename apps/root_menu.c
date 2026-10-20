@@ -643,7 +643,7 @@ char* root_menu_write_to_cfg(void* setting, char*buf, int buf_len)
 
 void root_menu_set_default(void* setting, void* defaultval)
 {
-    unsigned i;
+    unsigned i, count = 0;
     (void)defaultval;
 
     root_menu_.flags = MENU_HAS_DESC | MT_MENU;
@@ -652,9 +652,21 @@ void root_menu_set_default(void* setting, void* defaultval)
 
     for (i=0; i<MAX_MENU_ITEMS; i++)
     {
-        root_menu__[i] = (struct menu_item_ex *)menu_table[i].item;
+#if defined(SIMULATOR) && defined(__ANDROID__)
+        /* No radio or recording on a phone; they can be turned on in
+           Settings > Main Menu */
+#ifdef HAVE_RECORDING
+        if (menu_table[i].item == &rec)
+            continue;
+#endif
+#if CONFIG_TUNER
+        if (menu_table[i].item == &fm)
+            continue;
+#endif
+#endif
+        root_menu__[count++] = (struct menu_item_ex *)menu_table[i].item;
     }
-    root_menu_.flags |= MENU_ITEM_COUNT(MAX_MENU_ITEMS);
+    root_menu_.flags |= MENU_ITEM_COUNT(count);
     *(bool*)setting = false;
 }
 
