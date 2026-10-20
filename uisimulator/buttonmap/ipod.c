@@ -81,8 +81,9 @@ struct button_map bm[] = {
     { SDLK_KP_PLUS,    172, 519, 43, "Play" },
     /* Hidden, under the screen */
     { SIM_SKIN_COLOUR_KEY, 45, 282, 22, "Device colour" },
-#elif defined (IPOD_MINI2G) && defined(__ANDROID__)
-    /* skins/ipodmini2g.svg; the touch clickwheel handles the ring */
+#elif defined (IPOD_MINI2G)
+    /* uisimulator/skins/ipodmini2g.svg; the touch clickwheel handles the
+       ring */
     { SDLK_KP_5,       106, 264, 26, "Select" },
     { SDLK_KP_PERIOD,  106, 214, 20, "Menu" },
     { SDLK_KP_4,        41, 264, 20, "Left" },
@@ -90,7 +91,7 @@ struct button_map bm[] = {
     { SDLK_KP_PLUS,    106, 330, 20, "Play" },
     /* Hidden, under the screen */
     { SIM_SKIN_COLOUR_KEY, 48, 162, 14, "Device colour" },
-#elif defined (IPOD_MINI) || defined(IPOD_MINI2G)
+#elif defined (IPOD_MINI)
     { SDLK_KP_5,       92, 267, 29, "Select" },
     { SDLK_KP_4,       31, 263, 37, "Left" },
     { SDLK_KP_6,      150, 268, 33, "Right" },
@@ -98,10 +99,6 @@ struct button_map bm[] = {
     { SDLK_KP_PLUS,   93, 324, 25, "Play" },
     { SDLK_KP_8,       53, 220, 29, "Scroll Back" },
     { SDLK_KP_2,      134, 219, 31, "Scroll Fwd" },
-#ifdef IPOD_MINI2G
-    /* Hidden, under the screen */
-    { SIM_SKIN_COLOUR_KEY, 34, 150, 14, "Device colour" },
-#endif
 #elif defined (IPOD_3G)
     { SDLK_KP_5,       108, 296, 26, "Select" },
     { SDLK_KP_8,        70, 255, 26, "Scroll Back" },
@@ -171,11 +168,8 @@ const struct touchwheel_map tw =
 #if defined (IPOD_VIDEO)
     { 174, 437, 45, 124,
       { SDLK_KP_PERIOD, SDLK_KP_6, SDLK_KP_PLUS, SDLK_KP_4 } };
-#elif defined (IPOD_MINI2G) && defined(__ANDROID__)
-    { 106, 264, 26, 79,
-      { SDLK_KP_PERIOD, SDLK_KP_6, SDLK_KP_PLUS, SDLK_KP_4 } };
 #elif defined (IPOD_MINI2G)
-    { 93, 267, 28, 85,
+    { 106, 264, 26, 79,
       { SDLK_KP_PERIOD, SDLK_KP_6, SDLK_KP_PLUS, SDLK_KP_4 } };
 #else
     { 0, 0, 0, 0, { 0, 0, 0, 0 } };

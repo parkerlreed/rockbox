@@ -14,7 +14,7 @@ The simulated disk is the phone's shared storage (/sdcard), so the app asks
 for "All files access" on first start. Each model's own files (.rockbox)
 are kept in /sdcard/Rockbox/<model>/.rockbox instead of at the root (see
 uisimulator/common/filesystem-sim.c), unpacked there on first run and after
-updates. The device images are the SVGs in skins/.
+updates. The device images are the SVGs in uisimulator/skins.
 
 Only arm64 (aarch64) is supported.
 

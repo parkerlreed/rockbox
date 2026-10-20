@@ -21,11 +21,16 @@ ifeq (yes,$(APPLICATION))
 UIBMP=
 else
 UIBMP=$(BUILDDIR)/UI256.bmp
+# A vector device image, drawn instead where there is one (window-sdl.c)
+UISVG=$(wildcard $(ROOTDIR)/uisimulator/skins/$(MODELNAME).svg)
+ifneq (,$(UISVG))
+SKINSVG=$(BUILDDIR)/skin.svg
+endif
 endif
 
 .SECONDEXPANSION: # $$(OBJ) is not populated until after this
 
-$(SIMLIB): $$(SIMOBJ) $(UIBMP)
+$(SIMLIB): $$(SIMOBJ) $(UIBMP) $(SKINSVG)
 	$(SILENT)$(shell rm -f $@)
 	$(call PRINTS,AR $(@F))$(AR) rcs $@ $(SIMOBJ) >/dev/null
 
@@ -44,3 +49,8 @@ $(BUILDDIR)/uisimulator/%.o: $(ROOTDIR)/uisimulator/%.c
 
 $(UIBMP): $(ROOTDIR)/uisimulator/bitmaps/UI-$(MODELNAME).bmp
 	$(call PRINTS,CP $(@F))cp $< $@
+
+ifneq (,$(SKINSVG))
+$(SKINSVG): $(UISVG)
+	$(call PRINTS,CP $(@F))cp $< $@
+endif
