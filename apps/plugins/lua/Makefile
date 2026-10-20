@@ -38,7 +38,7 @@ all: $(OUTPUT)
 
 ifndef APP_TYPE
 $(OBJDIR)/lua.elf: $(OBJS) $(LINKFILE)
-	$(call PRINTS,LD $(@F))$(CC) $(CFLAGS) -o $@ $(OBJS) -L$(BUILDDIR) -lplugin -lgcc \
+	$(call PRINTS,LD $(@F))$(CC) $(CFLAGS) -o $@ $(OBJS) -L$(BUILDDIR) -lplugin $(LIBGCC) \
            -T$(LINKFILE) -Wl,--gc-sections -Wl,-Map,$(OBJDIR)/lua.map
 
 $(OUTPUT): $(OBJDIR)/lua.elf

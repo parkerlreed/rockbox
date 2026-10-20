@@ -60,6 +60,7 @@ int key_to_button(int keyboard_button)
             new_btn = BUTTON_SELECT;
             break;
         case SDLK_ESCAPE:
+        case SDLK_AC_BACK:
         case SDLK_BACKSPACE:
         case SDLK_KP_PERIOD:
         case SDLK_INSERT:
@@ -78,6 +79,8 @@ struct button_map bm[] = {
     { SDLK_KP_5,        172, 435, 43, "Select" },
     { SDLK_KP_6,        262, 438, 52, "Right" },
     { SDLK_KP_PLUS,    172, 519, 43, "Play" },
+    /* Hidden, under the screen */
+    { SIM_SKIN_COLOUR_KEY, 45, 282, 22, "Device colour" },
 #elif defined (IPOD_MINI) || defined(IPOD_MINI2G)
     { SDLK_KP_5,       92, 267, 29, "Select" },
     { SDLK_KP_4,       31, 263, 37, "Left" },
@@ -149,3 +152,13 @@ struct button_map bm[] = {
 #endif
     { 0, 0, 0 , 0, "None" }
 };
+
+#ifdef HAVE_SIM_TOUCHWHEEL
+const struct touchwheel_map tw =
+#if defined (IPOD_VIDEO)
+    { 174, 437, 45, 124,
+      { SDLK_KP_PERIOD, SDLK_KP_6, SDLK_KP_PLUS, SDLK_KP_4 } };
+#else
+    { 0, 0, 0, 0, { 0, 0, 0, 0 } };
+#endif
+#endif

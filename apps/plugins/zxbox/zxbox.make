@@ -43,7 +43,7 @@ $(ZXBOX_OBJDIR)/zxbox.ovl: $(ZXBOX_OBJ) $(ZXBOX_OUTLDS)
 	$(SILENT)$(CC) $(PLUGINFLAGS) -o $(basename $@).elf \
 		$(filter %.o, $^) \
 		$(filter %.a, $+) \
-		-lgcc $(ZXBOX_LDFLAGS)
+		$(LIBGCC) $(ZXBOX_LDFLAGS)
 	$(call PRINTS,LD $(@F))$(call objcopy_plugin,$(basename $@).elf,$@)
 
 # special pattern rule for compiling zxbox with extra flags

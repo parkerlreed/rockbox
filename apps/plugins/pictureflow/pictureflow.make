@@ -35,7 +35,7 @@ $(PICTUREFLOW_OBJDIR)/pictureflow.ovl: $(PICTUREFLOW_OBJ) $(PICTUREFLOW_OUTLDS)
 	$(SILENT)$(CC) $(PLUGINFLAGS) -o $(basename $@).elf \
 		$(filter %.o, $^) \
 		$(filter %.a, $+) \
-		-lgcc $(PICTUREFLOW_OVLFLAGS)
+		$(LIBGCC) $(PICTUREFLOW_OVLFLAGS)
 	$(call PRINTS,LD $(@F))$(call objcopy_plugin,$(basename $@).elf,$@)
 
 # special pattern rule for compiling pictureflow with extra flags
