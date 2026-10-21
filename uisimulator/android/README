@@ -72,6 +72,18 @@ app's private files:
 
     adb shell run-as org.rockbox.sim cat files/<model>/stdout.txt
 
+The APK is signed with the debug key (~/.android/debug.keystore) unless
+ANDROID_KEYSTORE names another keystore, with its password in
+ANDROID_KEYSTORE_PASS in apksigner's form (pass:, file: or env:), as for
+a release:
+
+    ANDROID_KEYSTORE=~/.android/rockbox-release.jks \
+    ANDROID_KEYSTORE_PASS=file:$HOME/.android/rockbox-release.pass \
+        ../uisimulator/android/build-apk.sh
+
+Android only updates an app with one signed by the same key, so going
+between debug and release builds needs an uninstall in between.
+
 To see where the buttons react to taps, build the APK with
 SIM_DEBUG_BUTTONS=1 build-apk.sh: it outlines them (--debugbuttons), and
 stdout.txt shows which button each tap hit.
