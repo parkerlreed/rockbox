@@ -33,7 +33,12 @@ PLATFORM=android-35
 ANDROID_JAR=$ANDROID_SDK_PATH/platforms/$PLATFORM/android.jar
 BUILD_TOOLS=$(ls -d "$ANDROID_SDK_PATH"/build-tools/* | sort -V | tail -n 1)
 STRIP=$ANDROID_NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip
-KEYSTORE=${ANDROID_KEYSTORE:-$HOME/.android/debug.keystore}
+# Signed with the debug key unless ANDROID_KEYSTORE names another, whose
+# password is in ANDROID_KEYSTORE_PASS in apksigner's form (pass:<password>,
+# file:<path> or env:<variable>)
+DEBUG_KEYSTORE=$HOME/.android/debug.keystore
+KEYSTORE=${ANDROID_KEYSTORE:-$DEBUG_KEYSTORE}
+KEYSTORE_PASS=${ANDROID_KEYSTORE_PASS:-pass:android}
 
 if [ ! -f "$BUILDDIR/libmain.so" ] || [ ! -d "$BUILDDIR/simdisk/.rockbox" ]; then
     echo "Run this from an --android-sim build dir after make && make install"
@@ -145,14 +150,14 @@ done
 (cd "$OUT" && zip -qr unaligned.apk classes.dex lib)
 
 echo "Signing"
-if [ ! -f "$KEYSTORE" ]; then
+if [ ! -f "$KEYSTORE" ] && [ "$KEYSTORE" = "$DEBUG_KEYSTORE" ]; then
     mkdir -p "$(dirname "$KEYSTORE")"
     keytool -genkeypair -keystore "$KEYSTORE" -storepass android -keypass android \
         -alias androiddebugkey -keyalg RSA -validity 10000 \
         -dname "CN=Android Debug,O=Android,C=US"
 fi
 "$BUILD_TOOLS/zipalign" -f -P 16 4 "$OUT/unaligned.apk" "$OUT/aligned.apk"
-"$BUILD_TOOLS/apksigner" sign --ks "$KEYSTORE" --ks-pass pass:android \
+"$BUILD_TOOLS/apksigner" sign --ks "$KEYSTORE" --ks-pass "$KEYSTORE_PASS" \
     --out "$BUILDDIR/rockbox-sim.apk" "$OUT/aligned.apk"
 
 echo "Created $BUILDDIR/rockbox-sim.apk"
