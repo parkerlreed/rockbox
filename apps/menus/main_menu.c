@@ -605,6 +605,9 @@ MAKE_MENU(android_menu, ID2P(LANG_ANDROID), 0, Icon_System_menu,
 
 MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         Icon_Submenu_Entered,
+#ifdef HAVE_SIM_ANDROID
+        &android_menu,
+#endif
         &sound_settings,
         &playback_settings,
         &settings_menu_item, &theme_menu,
@@ -615,9 +618,6 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         &timedate_item,
 #endif
         &main_menu_config_item,
-#ifdef HAVE_SIM_ANDROID
-        &android_menu,
-#endif
         &manage_settings,
         );
 /*    MAIN MENU                    */
