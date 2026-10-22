@@ -1552,4 +1552,10 @@ Lyre prototype 1 */
 #define HAVE_SIM_RAINBOW
 #endif
 
+/* The contrast setting shades the simulated LCD, on the iPod mini 2G */
+#if defined(HAVE_SIM_ANDROID) && defined(HAVE_LCD_CONTRAST) && \
+    LCD_DEPTH == 2
+#define HAVE_SIM_CONTRAST
+#endif
+
 #endif /* __CONFIG_H__ */

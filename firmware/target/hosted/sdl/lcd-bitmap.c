@@ -138,6 +138,7 @@ void lcd_update_rect(int x_start, int y_start, int width, int height)
         /* redraw the whole panel mirrored in both axes (sim software flip) */
         SDL_Rect d = {0, 0, 1, 1};
         int x, y;
+        sdl_lock_lcd_surface();
         for (y = 0; y < LCD_HEIGHT; y++)
         {
             for (x = 0; x < LCD_WIDTH; x++)
@@ -148,6 +149,7 @@ void lcd_update_rect(int x_start, int y_start, int width, int height)
                     get_lcd_pixel(LCD_WIDTH - 1 - x, LCD_HEIGHT - 1 - y));
             }
         }
+        sdl_unlock_lcd_surface();
         sdl_gui_update(lcd_surface, 0, 0, LCD_WIDTH,
                        LCD_HEIGHT + LCD_SPLIT_LINES, SIM_LCD_WIDTH, SIM_LCD_HEIGHT,
                        background ? UI_LCD_POSX : 0, background? UI_LCD_POSY : 0);
@@ -162,10 +164,63 @@ void lcd_update_rect(int x_start, int y_start, int width, int height)
                    background ? UI_LCD_POSX : 0, background? UI_LCD_POSY : 0);
 }
 
+#ifdef HAVE_SIM_CONTRAST
+/* Like an STN LCD's: below the default, the dark shades fade towards the
+   background, almost to nothing at the minimum; above it, all of them
+   darken, the darkest merging into black, and the background turns grey */
+static int sim_contrast = DEFAULT_CONTRAST_SETTING;
+static bool sim_lcd_lit = true;
+
+static void set_contrast_gradient(SDL_Color *dark, SDL_Color *bright)
+{
+    SDL_Color palette[NUM_SHADES];
+    float gain = 1.f, offset = 0.f;
+
+    if (sim_contrast < DEFAULT_CONTRAST_SETTING)
+        gain = 0.1f + 0.9f * (sim_contrast - MIN_CONTRAST_SETTING) /
+               (DEFAULT_CONTRAST_SETTING - MIN_CONTRAST_SETTING);
+    else
+        offset = 0.5f * (sim_contrast - DEFAULT_CONTRAST_SETTING) /
+                 (MAX_CONTRAST_SETTING - DEFAULT_CONTRAST_SETTING);
+
+    for (int i = 0; i < NUM_SHADES; i++)
+    {
+        /* shade 0 is the darkest */
+        float d = (1.f - (float)i / (NUM_SHADES - 1)) * gain + offset;
+        d = SDL_clamp(d, 0.f, 1.f);
+        palette[i].r = bright->r + (dark->r - bright->r) * d;
+        palette[i].g = bright->g + (dark->g - bright->g) * d;
+        palette[i].b = bright->b + (dark->b - bright->b) * d;
+        palette[i].a = 255;
+    }
+    sdl_lock_lcd_surface();
+    SDL_SetPaletteColors(lcd_surface->format->palette, palette, 0, NUM_SHADES);
+    sdl_unlock_lcd_surface();
+}
+
+void lcd_set_contrast(int val)
+{
+    sim_contrast = SDL_clamp(val, MIN_CONTRAST_SETTING, MAX_CONTRAST_SETTING);
+    if (sim_lcd_lit)
+        set_contrast_gradient(&lcd_bl_color_dark, &lcd_bl_color_bright);
+    else
+        set_contrast_gradient(&lcd_color_dark, &lcd_color_bright);
+    sdl_gui_update(lcd_surface, 0, 0, SIM_LCD_WIDTH, SIM_LCD_HEIGHT,
+                   SIM_LCD_WIDTH, SIM_LCD_HEIGHT,
+                   background ? UI_LCD_POSX : 0, background? UI_LCD_POSY : 0);
+}
+#endif /* HAVE_SIM_CONTRAST */
+
 #if defined(HAVE_BACKLIGHT) && (SDL_MAJOR_VERSION > 1)
 void sim_backlight(int value)
 {
-#if LCD_DEPTH <= 8
+#ifdef HAVE_SIM_CONTRAST
+    sim_lcd_lit = value > 0;
+    if (sim_lcd_lit)
+        set_contrast_gradient(&lcd_bl_color_dark, &lcd_bl_color_bright);
+    else
+        set_contrast_gradient(&lcd_color_dark, &lcd_color_bright);
+#elif LCD_DEPTH <= 8
     if (value > 0) {
         sdl_set_gradient(lcd_surface, &lcd_bl_color_dark,
                          &lcd_bl_color_bright, 0, NUM_SHADES);
@@ -198,6 +253,23 @@ void sim_backlight(int value)
                    background ? UI_LCD_POSX : 0, background? UI_LCD_POSY : 0);
 }
 #endif /* HAVE_BACKLIGHT */
+
+SDL_Color sim_lcd_background(void)
+{
+#if LCD_DEPTH <= 8
+    SDL_Color c = lcd_surface->format->palette->colors[NUM_SHADES - 1];
+    c.a = 255;
+#if LCD_DEPTH < 8
+    /* the window's texture is RGB565 (see rebuild_gui_texture()) */
+    c.r = (c.r & 0xf8) | (c.r >> 5);
+    c.g = (c.g & 0xfc) | (c.g >> 6);
+    c.b = (c.b & 0xf8) | (c.b >> 5);
+#endif
+    return c;
+#else
+    return (SDL_Color){ 255, 255, 255, 255 };
+#endif
+}
 
 /* initialise simulator lcd driver */
 void lcd_init_device(void)

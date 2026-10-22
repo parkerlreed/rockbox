@@ -23,6 +23,7 @@
 #include "window-sdl.h"
 #include "buttonmap.h"
 #include "lcd-sdl.h"
+#include "lcd-bitmap.h"
 #include "misc.h"
 #include "panic.h"
 
@@ -278,8 +279,8 @@ static void load_skin_colour(void)
 
 /* Vector device image (skin.svg, see uisimulator/skins), drawn
    sharp at the window's resolution. Runs of shapes whose group ids start
-   with "body", "wheel" or "label" are drawn in white into their own
-   layers and coloured when rendering, so colour changes are instant. */
+   with "body", "wheel", "label" or "lcd" are drawn in white into their
+   own layers and coloured when rendering, so colour changes are instant. */
 #define SVG_SKIN_FILE "skin.svg"
 #define SVG_MAX_LAYERS 16
 
@@ -296,7 +297,7 @@ static void load_skin_colour(void)
 #include "nanosvg/nanosvgrast.h"
 #pragma GCC diagnostic pop
 
-enum { SVG_FIXED, SVG_BODY, SVG_WHEEL, SVG_LABEL };
+enum { SVG_FIXED, SVG_BODY, SVG_WHEEL, SVG_LABEL, SVG_LCD };
 
 static char *svg_skin; /* the SVG with its colours filled in white */
 static struct
@@ -315,19 +316,21 @@ static int svg_tint(const char *id)
         return SVG_WHEEL;
     if (!SDL_strncmp(id, "label", 5))
         return SVG_LABEL;
+    if (!SDL_strncmp(id, "lcd", 3))
+        return SVG_LCD;
     return SVG_FIXED;
 }
 
 static void load_svg_skin(void)
 {
     static const char *const colours[] =
-        { "{body}", "{wheel}", "{button}", "{label}" };
+        { "{body}", "{wheel}", "{button}", "{label}", "{lcd}" };
     size_t size;
     char *text = SDL_LoadFile(sim_file(SVG_SKIN_FILE), &size);
     if (!text)
         return;
 
-    /* every placeholder becomes "#ffffff", one character longer */
+    /* every placeholder becomes "#ffffff", under twice its length */
     svg_skin = SDL_malloc(size * 2 + 1);
     char *out = svg_skin;
     for (const char *p = text; *p; )
@@ -485,6 +488,32 @@ static SDL_Color rainbow_colour(void)
 }
 #endif /* HAVE_SIM_RAINBOW */
 
+/* Fills the texels round the LCD in the window's texture with the LCD's
+   background colour, as the scaling blends them into its edges: they
+   would otherwise be the bitmap skin's frame, a faint line round the
+   LCD on an SVG "lcd" window */
+static void fill_lcd_surround(SDL_Color c)
+{
+#if LCD_DEPTH < 8
+    static Uint16 line[SDL_max(SIM_LCD_WIDTH + 2, SIM_LCD_HEIGHT)];
+    Uint16 px = ((c.r >> 3) << 11) | ((c.g >> 2) << 5) | (c.b >> 3);
+    for (size_t i = 0; i < SDL_arraysize(line); i++)
+        line[i] = px;
+    SDL_Rect sides[] =
+    {
+        { UI_LCD_POSX - 1, UI_LCD_POSY - 1, SIM_LCD_WIDTH + 2, 1 },
+        { UI_LCD_POSX - 1, UI_LCD_POSY + SIM_LCD_HEIGHT, SIM_LCD_WIDTH + 2, 1 },
+        { UI_LCD_POSX - 1, UI_LCD_POSY, 1, SIM_LCD_HEIGHT },
+        { UI_LCD_POSX + SIM_LCD_WIDTH, UI_LCD_POSY, 1, SIM_LCD_HEIGHT },
+    };
+    for (size_t i = 0; i < SDL_arraysize(sides); i++)
+        SDL_UpdateTexture(gui_texture, &sides[i], line,
+                          sides[i].h == 1 ? (int)sizeof(line) : 2);
+#else
+    (void)c;
+#endif
+}
+
 /* Draws the SVG device image and the LCD; false without an SVG skin */
 static bool render_svg_skin(void)
 {
@@ -512,6 +541,9 @@ static bool render_svg_skin(void)
     SDL_Color label = dark ? (SDL_Color){ 0x8e, 0x8e, 0x92, 255 }
                            : (SDL_Color){ 0x9a, 0x9a, 0x9a, 255 };
 
+    SDL_Color lcd_bg = sim_lcd_background();
+    bool lcd_window = false;
+
     SDL_RenderClear(sdlRenderer);
     for (int i = 0; i < svg_layer_count; i++)
     {
@@ -522,10 +554,17 @@ static bool render_svg_skin(void)
             c = wheel;
         else if (svg_layers[i].tint == SVG_LABEL)
             c = label;
+        else if (svg_layers[i].tint == SVG_LCD)
+        {
+            c = lcd_bg;
+            lcd_window = true;
+        }
         SDL_SetTextureColorMod(svg_layers[i].texture, c.r, c.g, c.b);
         SDL_RenderCopyF(sdlRenderer, svg_layers[i].texture, NULL,
                         &svg_layers[i].dest);
     }
+    if (lcd_window)
+        fill_lcd_surround(lcd_bg);
     SDL_Rect lcd = { UI_LCD_POSX, UI_LCD_POSY, SIM_LCD_WIDTH, SIM_LCD_HEIGHT };
     SDL_RenderCopy(sdlRenderer, gui_texture, &lcd, &lcd);
     draw_button_bounds();

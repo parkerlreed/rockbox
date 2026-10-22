@@ -29,6 +29,9 @@ void sim_lcd_init(void);
 void sim_lcd_ex_init(unsigned long (*getpixel)(int, int));
 void sim_lcd_ex_update_rect(int x, int y, int width, int height);
 #endif
+/* The colour of an unlit pixel, as the backlight leaves it and as it
+   shows on the window */
+SDL_Color sim_lcd_background(void);
 
 #endif /* #ifndef __LCDBITMAP_H__ */
 

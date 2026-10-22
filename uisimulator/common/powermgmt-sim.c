@@ -72,9 +72,15 @@ static void battery_status_update(void)
                           percent * (BATT_MAXMVOLT - BATT_MINMVOLT) / 100;
     charging = state == SDL_POWERSTATE_CHARGING;
 #if CONFIG_CHARGING
-    charger_input_state = (state == SDL_POWERSTATE_CHARGING ||
-                           state == SDL_POWERSTATE_CHARGED)
-                          ? CHARGER_PLUGGED : CHARGER_UNPLUGGED;
+    /* Only on a change: powermgmt broadcasts a charger event each time it
+       sees a transitional state, and each one restarts the backlight's
+       timeout */
+    bool plugged = state == SDL_POWERSTATE_CHARGING ||
+                   state == SDL_POWERSTATE_CHARGED;
+    if (plugged && charger_input_state <= CHARGER_UNPLUGGED)
+        charger_input_state = CHARGER_PLUGGED;
+    else if (!plugged && charger_input_state >= CHARGER_PLUGGED)
+        charger_input_state = CHARGER_UNPLUGGED;
 #endif
 #else /* !__ANDROID__ */
 #if CONFIG_CHARGING >= CHARGING_MONITOR

@@ -51,7 +51,11 @@ void lcd_set_invert_display(bool invert)
 
 int lcd_default_contrast(void)
 {
+#ifdef HAVE_SIM_CONTRAST /* the shading's neutral point, see lcd-bitmap.c */
+    return DEFAULT_CONTRAST_SETTING;
+#else
     return 28;
+#endif
 }
 
 #ifdef HAVE_REMOTE_LCD

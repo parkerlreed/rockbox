@@ -6,9 +6,11 @@
        labels are in the body colour, as on the mini 2G.
 
        window-sdl.c draws each run of groups whose ids start with "body",
-       "wheel" or "label" in white and colours it when rendering, so the
-       colour can change instantly; it fills {body}, {wheel}, {button} and
-       {label} with white. Other groups are drawn as they are. -->
+       "wheel", "label" or "lcd" in white and colours it when rendering, so
+       the colour can change instantly; it fills {body}, {wheel}, {button},
+       {label} and {lcd} with white. The "lcd" groups take the LCD's
+       background colour, which follows the backlight. Other groups are
+       drawn as they are. -->
   <!-- nanosvg only draws gradients in user space properly -->
   <defs>
     <linearGradient id="sheen" x1="0" y1="0" x2="74" y2="384" gradientUnits="userSpaceOnUse">
@@ -27,10 +29,6 @@
       <stop offset="0.97" stop-color="#000000" stop-opacity="0.10"/>
       <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
     </linearGradient>
-    <linearGradient id="frame" x1="0" y1="24" x2="0" y2="142" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#c9cfd4"/>
-      <stop offset="1" stop-color="#aab1b7"/>
-    </linearGradient>
     <radialGradient id="wheelshade" cx="106" cy="264" r="79" gradientUnits="userSpaceOnUse">
       <stop offset="0.9" stop-color="#000000" stop-opacity="0"/>
       <stop offset="1" stop-color="#000000" stop-opacity="0.06"/>
@@ -38,18 +36,19 @@
   </defs>
 
   <g id="body-case">
-    <rect x="0" y="0" width="212" height="384" rx="10" fill="{body}"/>
+    <rect x="0" y="0" width="212" height="384" rx="2" fill="{body}"/>
   </g>
 
   <g id="case-details">
-    <rect x="0" y="0" width="212" height="384" rx="10" fill="url(#sheen)"/>
-    <rect x="0" y="0" width="212" height="384" rx="10" fill="url(#sides)"/>
-    <!-- screen window around the LCD -->
-    <rect x="32" y="24" width="148" height="118" rx="3" fill="url(#frame)"/>
-    <rect x="32.5" y="24.5" width="147" height="117" rx="2.5" fill="none"
-          stroke="#000000" stroke-opacity="0.30" stroke-width="1"/>
-    <rect x="36" y="27" width="140" height="112" fill="#000000" fill-opacity="0.35"/>
+    <rect x="0" y="0" width="212" height="384" rx="2" fill="url(#sheen)"/>
+    <rect x="0" y="0" width="212" height="384" rx="2" fill="url(#sides)"/>
     <circle cx="106" cy="264" r="80" fill="#000000" fill-opacity="0.08"/>
+  </g>
+
+  <!-- the screen's glass: the LCD's background colour round the LCD,
+       as on the mini, where nothing frames the screen -->
+  <g id="lcd-window">
+    <rect x="32" y="24" width="148" height="118" rx="3" fill="{lcd}"/>
   </g>
 
   <g id="wheel">

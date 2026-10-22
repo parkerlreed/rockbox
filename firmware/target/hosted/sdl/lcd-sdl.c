@@ -26,11 +26,27 @@
 #include "window-sdl.h"
 #endif
 
+/* Held while an LCD surface is written or copied to the window: on
+   Android the window is drawn on another thread, which would otherwise
+   copy a half-written frame, a tear across the LCD */
+static SDL_SpinLock surface_lock;
+
+void sdl_lock_lcd_surface(void)
+{
+    SDL_AtomicLock(&surface_lock);
+}
+
+void sdl_unlock_lcd_surface(void)
+{
+    SDL_AtomicUnlock(&surface_lock);
+}
+
 void sdl_update_rect(SDL_Surface *surface, int x_start, int y_start, int width,
                      int height, int max_x, int max_y,
                      unsigned long (*getpixel)(int, int))
 {
     SDL_Rect dest;
+    sdl_lock_lcd_surface();
 #if LCD_DEPTH >= 8 && (LCD_PIXELFORMAT == RGB565) && \
     (LCD_STRIDEFORMAT == HORIZONTAL_STRIDE) && \
     !defined(HAVE_LCD_SPLIT) && !defined(HAVE_REMOTE_LCD)
@@ -89,6 +105,7 @@ void sdl_update_rect(SDL_Surface *surface, int x_start, int y_start, int width,
 #endif
     }
 #endif
+    sdl_unlock_lcd_surface();
 }
 
 void sdl_gui_update(SDL_Surface *surface, int x_start, int y_start, int width,
@@ -119,7 +136,9 @@ void sdl_gui_update(SDL_Surface *surface, int x_start, int y_start, int width,
     if (SDL_GetSurfaceAlphaMod(surface,&alpha) == 0 && alpha < 255)
         SDL_FillRect(sim_lcd_surface, NULL, 0); /* alpha needs a black background */
 
+    sdl_lock_lcd_surface();
     SDL_BlitSurface(surface, &src, sim_lcd_surface, NULL);
+    sdl_unlock_lcd_surface();
     SDL_UpdateTexture(gui_texture, &dest,
                       sim_lcd_surface->pixels, sim_lcd_surface->pitch);
 

@@ -221,10 +221,12 @@ void lcd_remote_emireduce(bool state)
 }
 #endif
 
+#ifndef HAVE_SIM_CONTRAST /* in lcd-bitmap.c */
 void lcd_set_contrast( int x )
 {
     (void)x;
 }
+#endif
 
 void cpu_sleep(bool enabled)
 {
