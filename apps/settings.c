@@ -906,6 +906,9 @@ void settings_apply(bool read_disk)
 #ifdef HAVE_SIM_RAINBOW
     sim_rainbow_set(global_settings.sim_rainbow);
 #endif
+#ifdef HAVE_SIM_GYRO
+    sim_gyro_set(global_settings.sim_gyro);
+#endif
     CHART(">set_codepage");
     set_codepage(global_settings.default_codepage);
     CHART("<set_codepage");

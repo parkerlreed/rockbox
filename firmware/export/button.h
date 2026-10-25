@@ -155,6 +155,11 @@ void sim_haptics_set(int strength);
 void sim_rainbow_set(bool on);
 #endif
 
+#ifdef HAVE_SIM_GYRO
+/* Keeps the 3D device still as the phone turns, with its gyroscope */
+void sim_gyro_set(bool on);
+#endif
+
 #ifdef HAVE_SIM_ANDROID
 /* The models in the APK, as "name\ttitle\n" lines; returns how many */
 int sim_android_models(char *buf, size_t size);

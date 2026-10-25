@@ -415,6 +415,9 @@ struct user_settings
 #ifdef HAVE_SIM_RAINBOW
     bool sim_rainbow;          /* cycle the device image's colour */
 #endif
+#ifdef HAVE_SIM_GYRO
+    bool sim_gyro;             /* keep the 3D device still as the phone turns */
+#endif
     int  keyclick_repeats;  /* keyclick on repeats */
     bool dithering_enabled;
 #ifdef HAVE_PITCHCONTROL

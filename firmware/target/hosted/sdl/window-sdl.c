@@ -24,6 +24,9 @@
 #include "buttonmap.h"
 #include "lcd-sdl.h"
 #include "lcd-bitmap.h"
+#ifdef HAVE_SIM_3D
+#include "window-3d.h"
+#endif
 #include "misc.h"
 #include "panic.h"
 
@@ -572,6 +575,32 @@ static bool render_svg_skin(void)
     return true;
 }
 
+#ifdef HAVE_SIM_3D
+/* Draws the 3D device (window-3d.c); false without it. Opacity 0 keeps
+   the model's own colour. */
+static bool render_3d(void)
+{
+    if (!sim3d_active())
+        return false;
+    struct sim3d_look look =
+    {
+        .body = { skin_tint.r, skin_tint.g, skin_tint.b, 255 },
+        .tinted = skin_tint.opacity != 0,
+        .lcd_bg = sim_lcd_background(),
+    };
+#ifdef HAVE_SIM_RAINBOW
+    if (rainbow)
+    {
+        look.body = rainbow_colour();
+        look.tinted = true;
+    }
+#endif
+    if (sim3d_render(sim_lcd_surface, &look))
+        sdl_window_request_render(); /* still moving */
+    return true;
+}
+#endif /* HAVE_SIM_3D */
+
 #ifdef __ANDROID__
 #include <jni.h>
 
@@ -815,6 +844,10 @@ void sdl_window_render(void)
         return;
     }
 #endif
+#ifdef HAVE_SIM_3D
+    if (render_3d())
+        return;
+#endif
     if (new_gui_texture_needed)
     {
         new_gui_texture_needed = false;
@@ -917,12 +950,21 @@ void sdl_window_setup(void)
 
     get_window_dimensions(&width, &height);
 
-    if ((sdlWindow = SDL_CreateWindow(UI_TITLE, SDL_WINDOWPOS_CENTERED,
-                                   SDL_WINDOWPOS_CENTERED, width * display_zoom,
-                                   height * display_zoom , flags)) == NULL)
-        panicf("%s", SDL_GetError());
-    if ((sdlRenderer = SDL_CreateRenderer(sdlWindow, -1, SDL_RENDERER_PRESENTVSYNC)) == NULL)
-        panicf("%s", SDL_GetError());
+#ifdef HAVE_SIM_3D
+    /* the 3D device draws with GL itself, without a renderer */
+    sdlWindow = sim3d_create_window(sim_file("mini3d"), UI_TITLE,
+                                    width * display_zoom,
+                                    height * display_zoom, flags);
+    if (!sdlWindow)
+#endif
+    {
+        if ((sdlWindow = SDL_CreateWindow(UI_TITLE, SDL_WINDOWPOS_CENTERED,
+                                       SDL_WINDOWPOS_CENTERED, width * display_zoom,
+                                       height * display_zoom , flags)) == NULL)
+            panicf("%s", SDL_GetError());
+        if ((sdlRenderer = SDL_CreateRenderer(sdlWindow, -1, SDL_RENDERER_PRESENTVSYNC)) == NULL)
+            panicf("%s", SDL_GetError());
+    }
 
     /* Surface for LCD content only. Needs to fit largest LCD */
     if ((sim_lcd_surface = SDL_CreateRGBSurface(0,

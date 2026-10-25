@@ -362,8 +362,9 @@ simcc () {
    OC="$ndkbin/llvm-objcopy"
    GCCOPTS=`echo $GCCOPTS | sed -e s/\ -funit-at-a-time//`
    GCCOPTS="$GCCOPTS -fPIC -Dmain=SDL_main"
-   # SDLActivity loads the simulator as a library
-   LDOPTS="$LDOPTS -ldl -shared"
+   # SDLActivity loads the simulator as a library; GL ES 3 draws the 3D
+   # device (window-3d.c)
+   LDOPTS="$LDOPTS -ldl -shared -lGLESv3 -landroid"
    output="libmain.so"
    libgcc="" # clang links compiler-rt itself
    endian="little"
@@ -1649,6 +1650,7 @@ ARG_PREFIX="$PREFIX"
 ARG_THREAD_SUPPORT=
 ARG_32BIT=
 ARG_ANDROID_SIM=
+ARG_ANDROID_SIM_3D=
 ARG_ADDR_SAN=
 ARG_UBSAN=
 ARG_STACK_PROTECTOR=
@@ -1812,7 +1814,8 @@ cat <<EOF
  219) NWZ-E350 series      200) SDL (Generic)    ==IHIFI==
  220) NWZ-E370/E380 series 201) Android (ARM)    230) 760
  221) NWZ-E360 series      202) Android iPod sim 231) 770
- 222) NWZ-E450 series      209) Anbernic RG Nano 232) 770C
+ 222) NWZ-E450 series      203) Android mini 3D  232) 770C
+                           209) Anbernic RG Nano
  223) NWZ-E460 series      ==AGPTek==            233) 800
  224) NWZ-E470 series      239) Rocker (native)  234) 960
  225) NWZ-E580 series      240) Rocker (hosted)
@@ -1840,11 +1843,17 @@ EOF
 fi
 
 # The Android simulator is listed as a target of its own: the iPod Video
-# simulator built for Android, see uisimulator/android/README
+# simulator built for Android, see uisimulator/android/README; 203 is the
+# iPod mini 2G drawn in 3D, an app of its own
 case $buildfor in
   202|androidsim)
     buildfor=ipodvideo
     ARG_TYPE=R
+    ;;
+  203|androidsim3d)
+    buildfor=ipodmini2g
+    ARG_TYPE=R
+    ARG_ANDROID_SIM_3D=1
     ;;
 esac
   # Set of tools built for all target platforms:
@@ -4484,6 +4493,10 @@ fi
         [Rr])
           # target 202, or --android-sim; see uisimulator/android/README
           ARG_ANDROID_SIM=1
+          if [ "$ARG_ANDROID_SIM_3D" = "1" ]; then
+            # target 203: the iPod mini 2G in 3D (window-3d.c)
+            extradefines="$extradefines -DSIM_ANDROID_3D"
+          fi
           echo "Android simulator build selected"
           ;;
         *)
@@ -5128,6 +5141,7 @@ export LCDORIENTATION=${lcd_orientation}
 export ANDROID_ARCH=${ANDROID_ARCH}
 export ANDROID_NDK_PATH=${ANDROID_NDK_PATH}
 export ANDROID_SDK_PATH=${ANDROID_SDK_PATH}
+export ANDROID_SIM_3D=${ARG_ANDROID_SIM_3D}
 export FUNKEY_SDK_PATH=${FUNKEY_SDK_PATH}
 export ANDROID_PLATFORM_VERSION=${ANDROID_PLATFORM_VERSION}
 export TOOLSET=${toolset}

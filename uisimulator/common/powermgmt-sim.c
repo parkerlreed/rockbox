@@ -27,6 +27,9 @@
 #ifdef __ANDROID__
 #include <SDL.h>
 #endif
+#ifdef HAVE_SIM_3D
+bool sim3d_cable(bool plugged); /* window-3d.c */
+#endif
 
 #define BATT_MINMVOLT   3300      /* minimum millivolts of battery */
 #define BATT_MAXMVOLT   4300      /* maximum millivolts of battery */
@@ -77,6 +80,11 @@ static void battery_status_update(void)
        timeout */
     bool plugged = state == SDL_POWERSTATE_CHARGING ||
                    state == SDL_POWERSTATE_CHARGED;
+#ifdef HAVE_SIM_3D
+    /* only once the 3D device's dock cable is in (window-3d.c) */
+    plugged = sim3d_cable(plugged);
+    charging = charging && plugged;
+#endif
     if (plugged && charger_input_state <= CHARGER_UNPLUGGED)
         charger_input_state = CHARGER_PLUGGED;
     else if (!plugged && charger_input_state >= CHARGER_PLUGGED)

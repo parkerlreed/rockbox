@@ -589,6 +589,9 @@ MENUITEM_SETTING(clickwheel_vibration, &global_settings.clickwheel_vibration,
 #ifdef HAVE_SIM_RAINBOW
 MENUITEM_SETTING(sim_rainbow, &global_settings.sim_rainbow, NULL);
 #endif
+#ifdef HAVE_SIM_GYRO
+MENUITEM_SETTING(sim_gyro, &global_settings.sim_gyro, NULL);
+#endif
 MAKE_MENU(android_menu, ID2P(LANG_ANDROID), 0, Icon_System_menu,
           &android_model_item,
 #ifdef HAVE_SIM_HAPTICS
@@ -596,6 +599,9 @@ MAKE_MENU(android_menu, ID2P(LANG_ANDROID), 0, Icon_System_menu,
 #endif
 #ifdef HAVE_SIM_RAINBOW
           &sim_rainbow,
+#endif
+#ifdef HAVE_SIM_GYRO
+          &sim_gyro,
 #endif
           );
 #endif

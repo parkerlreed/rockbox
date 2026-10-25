@@ -22,6 +22,8 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.media.MediaScannerConnection;
 import android.os.Build;
 import android.os.Bundle;
@@ -38,6 +40,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -132,6 +135,24 @@ public class RockboxSimActivity extends SDLActivity
     {
         runOnUiThread(() ->
             SkinColourPicker.show(this, r, g, b, opacity, hasOpacity));
+    }
+
+    /* Called from the simulator (window-3d.c) for the 3D device's
+       textures: the image's pixels as RGBA, its width and height in size */
+    static ByteBuffer decodeImage(String path, int[] size)
+    {
+        BitmapFactory.Options opts = new BitmapFactory.Options();
+        opts.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        opts.inPremultiplied = false;
+        Bitmap bitmap = BitmapFactory.decodeFile(path, opts);
+        if (bitmap == null)
+            return null;
+        ByteBuffer pixels = ByteBuffer.allocateDirect(bitmap.getByteCount());
+        bitmap.copyPixelsToBuffer(pixels); /* in memory as R, G, B, A */
+        size[0] = bitmap.getWidth();
+        size[1] = bitmap.getHeight();
+        bitmap.recycle();
+        return pixels;
     }
 
     /* Called from the simulator, the camera plugin (camera-sdl.c) */

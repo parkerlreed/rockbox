@@ -17367,3 +17367,20 @@
     android_sim: "Rainbow"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_ANDROID_GYROSCOPE
+  desc: in the Android settings menu; the 3D device stays still as the phone turns
+  user: core
+  <source>
+    *: none
+    android_sim: "Gyroscope"
+  </source>
+  <dest>
+    *: none
+    android_sim: "Gyroscope"
+  </dest>
+  <voice>
+    *: none
+    android_sim: "Gyroscope"
+  </voice>
+</phrase>

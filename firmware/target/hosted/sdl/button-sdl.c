@@ -38,6 +38,9 @@
 #endif
 #include "sim_tasks.h"
 #include "buttonmap.h"
+#ifdef HAVE_SIM_3D
+#include "window-3d.h"
+#endif
 #include "debug.h"
 #include "powermgmt.h"
 #include "storage.h"
@@ -342,6 +345,10 @@ static bool touchwheel_down(int x, int y)
 {
     if (tw_event_type == (Uint32)-1 || !tw_on_ring(x, y))
         return false;
+#ifdef HAS_BUTTON_HOLD
+    if (hold_button_state)
+        return true; /* locked, as on the iPod */
+#endif
 
     tw_release_tap();
     tw_gen++;
@@ -423,6 +430,17 @@ static bool touchwheel_up(void)
     return true;
 }
 
+#ifdef HAVE_SIM_3D
+/* Forgets a touch without clicking, when it becomes a pinch */
+static void touchwheel_cancel(void)
+{
+    if (tw_state == TW_PRESSED)
+        button_event(tw_key, false);
+    tw_state = TW_IDLE;
+    tw_gen++;
+}
+#endif
+
 static void touchwheel_timer(int code)
 {
     if ((unsigned)code >> 1 != (tw_gen & (UINT_MAX >> 1)))
@@ -495,7 +513,11 @@ static void mouse_event(SDL_MouseButtonEvent *event, bool button_up)
                 break;
 #endif
 #ifdef SIMULATOR
-            if ( background ) {
+            if ( background
+#ifdef HAS_BUTTON_HOLD
+                 && !hold_button_state /* locked */
+#endif
+               ) {
                 xybutton = xy2button( event->x, event->y );
                 if( xybutton ) {
                     haptic(HAPTIC_CLICK);
@@ -547,6 +569,213 @@ static void mouse_event(SDL_MouseButtonEvent *event, bool button_up)
 #undef SQUARE
 }
 
+#ifdef HAVE_SIM_3D
+/* Touches on the 3D device (window-3d.c): on the wheel and the buttons
+   they go to the 2D skin's handling at the matching point, a tap on the
+   hold switch slides it, and anywhere else a drag turns the device and a
+   double tap puts it back. Two fingers zoom and move it. */
+#define T3D_TAP_SLOP       12   /* pixels a tap may move */
+#define T3D_DOUBLE_TAP_MS 350
+
+static enum { T3D_NONE, T3D_FACE, T3D_HOLD, T3D_TURN, T3D_PINCH } t3d;
+static bool t3d_slid;   /* the hold switch moved under the finger */
+static int t3d_down_x, t3d_down_y, t3d_last_x, t3d_last_y;
+
+/* The two fingers of a pinch, in window pixels */
+static struct { SDL_FingerID id; float x, y; } t3d_fingers[2];
+static int t3d_nfingers;
+
+static void pinch_span(float *cx, float *cy, float *dist)
+{
+    *cx = (t3d_fingers[0].x + t3d_fingers[1].x) / 2;
+    *cy = (t3d_fingers[0].y + t3d_fingers[1].y) / 2;
+    *dist = hypotf(t3d_fingers[0].x - t3d_fingers[1].x,
+                   t3d_fingers[0].y - t3d_fingers[1].y);
+}
+
+static bool touch_3d_finger(SDL_Event *event)
+{
+    extern SDL_Window *sdlWindow;
+    int w, h, i;
+    float cx, cy, dist;
+    SDL_GetWindowSize(sdlWindow, &w, &h);
+    float x = event->tfinger.x * w, y = event->tfinger.y * h;
+
+    for (i = 0; i < t3d_nfingers; i++)
+        if (t3d_fingers[i].id == event->tfinger.fingerId)
+            break;
+
+    switch (event->type)
+    {
+    case SDL_FINGERDOWN:
+        if (i < t3d_nfingers || t3d_nfingers == 2)
+            break;
+        t3d_fingers[t3d_nfingers++] = (typeof(t3d_fingers[0]))
+            { event->tfinger.fingerId, x, y };
+        if (t3d_nfingers == 2)
+        {
+            /* what the first finger started becomes a pinch */
+            if (t3d == T3D_FACE)
+            {
+                SDL_MouseButtonEvent mev = { .button = SDL_BUTTON_LEFT,
+                                             .x = -1000, .y = -1000 };
+                touchwheel_cancel();
+                mouse_event(&mev, true); /* lets go of a button */
+            }
+            t3d = T3D_PINCH;
+        }
+        break;
+    case SDL_FINGERMOTION:
+        if (i == t3d_nfingers)
+            break;
+        if (t3d == T3D_PINCH && t3d_nfingers == 2)
+        {
+            float cx0, cy0, dist0;
+            pinch_span(&cx0, &cy0, &dist0);
+            t3d_fingers[i].x = x;
+            t3d_fingers[i].y = y;
+            pinch_span(&cx, &cy, &dist);
+            if (dist0 > 1 && dist > 1)
+                sim3d_zoom(dist / dist0, cx, cy);
+            sim3d_pan(cx - cx0, cy - cy0);
+            sdl_window_request_render();
+        }
+        else
+        {
+            t3d_fingers[i].x = x;
+            t3d_fingers[i].y = y;
+        }
+        break;
+    case SDL_FINGERUP:
+        if (i == t3d_nfingers)
+            break;
+        t3d_fingers[i] = t3d_fingers[--t3d_nfingers];
+        if (!t3d_nfingers && t3d == T3D_PINCH)
+            t3d = T3D_NONE;
+        break;
+    }
+    return true;
+}
+
+static void set_hold_3d(bool on)
+{
+    hold_button_state = on;
+    sim3d_set_hold(on);
+    haptic(HAPTIC_CLICK);
+    sdl_window_request_render();
+}
+
+static bool touch_3d(SDL_Event *event)
+{
+    static Uint32 last_tap_ms;
+    int ux, uy;
+
+    if (event->type == SDL_FINGERDOWN || event->type == SDL_FINGERMOTION ||
+        event->type == SDL_FINGERUP)
+        return touch_3d_finger(event);
+    if (t3d == T3D_PINCH &&
+        (event->type == SDL_MOUSEBUTTONDOWN || event->type == SDL_MOUSEBUTTONUP ||
+         event->type == SDL_MOUSEMOTION))
+        return true; /* the first finger's, till all are up */
+
+    switch (event->type)
+    {
+    case SDL_MOUSEBUTTONDOWN:
+        if (event->button.button != SDL_BUTTON_LEFT)
+            return false;
+        t3d_down_x = t3d_last_x = event->button.x;
+        t3d_down_y = t3d_last_y = event->button.y;
+        switch (sim3d_pick(event->button.x, event->button.y, &ux, &uy))
+        {
+        case SIM3D_HOLD:
+            t3d = T3D_HOLD;
+            t3d_slid = false;
+            break;
+        case SIM3D_FACE:
+            if ((tw_on_ring(ux, uy) || xy2button(ux, uy))
+#ifdef HAS_BUTTON_HOLD
+                && !hold_button_state /* locked: it turns the device */
+#endif
+               )
+            {
+                SDL_MouseButtonEvent mev = event->button;
+                mev.x = ux;
+                mev.y = uy;
+                t3d = T3D_FACE;
+                mouse_event(&mev, false);
+                break;
+            }
+            /* fall through */
+        case SIM3D_NONE:
+            t3d = T3D_TURN;
+            break;
+        }
+        return true;
+
+    case SDL_MOUSEMOTION:
+        if (t3d == T3D_HOLD)
+        {
+            /* dragged along its way, past half of it */
+            float mm = sim3d_hold_slide(t3d_down_x, t3d_down_y,
+                                        event->motion.x, event->motion.y);
+            float half = sim3d_hold_travel() / 2;
+            if ((!hold_button_state && mm > half) ||
+                (hold_button_state && mm < -half))
+            {
+                set_hold_3d(!hold_button_state);
+                t3d_slid = true;
+                t3d_down_x = event->motion.x; /* from here, for the way back */
+                t3d_down_y = event->motion.y;
+            }
+        }
+        else if (t3d == T3D_FACE)
+        {
+            sim3d_face_point(event->motion.x, event->motion.y, &ux, &uy);
+            touchwheel_motion(ux, uy, event->motion.timestamp);
+        }
+        else if (t3d == T3D_TURN)
+        {
+            sim3d_turn(event->motion.x - t3d_last_x,
+                       event->motion.y - t3d_last_y);
+            t3d_last_x = event->motion.x;
+            t3d_last_y = event->motion.y;
+            sdl_window_request_render();
+        }
+        return true; /* not window coordinates the 2D skin knows */
+
+    case SDL_MOUSEBUTTONUP:
+        if (event->button.button != SDL_BUTTON_LEFT)
+            return false;
+        bool tap = abs(event->button.x - t3d_down_x) <= T3D_TAP_SLOP &&
+                   abs(event->button.y - t3d_down_y) <= T3D_TAP_SLOP;
+        if (t3d == T3D_FACE)
+        {
+            SDL_MouseButtonEvent mev = event->button;
+            sim3d_face_point(mev.x, mev.y, &ux, &uy);
+            mev.x = ux;
+            mev.y = uy;
+            mouse_event(&mev, true);
+        }
+        else if (t3d == T3D_HOLD && tap && !t3d_slid)
+            set_hold_3d(!hold_button_state);
+        else if (t3d == T3D_TURN && tap)
+        {
+            if (event->button.timestamp - last_tap_ms < T3D_DOUBLE_TAP_MS)
+            {
+                sim3d_reset_view();
+                sdl_window_request_render();
+                last_tap_ms = 0;
+            }
+            else
+                last_tap_ms = event->button.timestamp;
+        }
+        t3d = T3D_NONE;
+        return true;
+    }
+    return false;
+}
+#endif /* HAVE_SIM_3D */
+
 static bool event_handler(SDL_Event *event)
 {
 #if SDL_MAJOR_VERSION > 1
@@ -555,8 +784,8 @@ static bool event_handler(SDL_Event *event)
     SDLKey ev_key;
 #endif
 
-#ifdef __ANDROID__
-    if (sdl_window_handle_event(event))
+#ifdef HAVE_SIM_3D
+    if (sim3d_active() && touch_3d(event))
         return false;
 #endif
 #ifdef HAVE_SIM_TOUCHWHEEL
@@ -720,6 +949,13 @@ void gui_message_loop(void)
             return; /* error, out of here */
         }
 
+#ifdef __ANDROID__
+        /* Drawing is no interrupt: Rockbox's threads carry on meanwhile,
+           which matters when it's continuous, with the 3D device's
+           gyroscope. It takes the LCD under its own lock. */
+        if (sdl_window_handle_event(&event))
+            continue;
+#endif
         sim_enter_irq_handler();
         quit = event_handler(&event);
         sim_exit_irq_handler();
@@ -919,6 +1155,10 @@ static void button_event(int key, bool pressed)
         {
             hold_button_state = !hold_button_state;
             DEBUGF("Hold button is %s\n", hold_button_state?"ON":"OFF");
+#ifdef HAVE_SIM_3D
+            sim3d_set_hold(hold_button_state);
+            sdl_window_request_render();
+#endif
         }
         return;
 #endif

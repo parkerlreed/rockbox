@@ -67,6 +67,28 @@ Then:
     ../uisimulator/android/build-apk.sh
     adb install -r rockbox-sim.apk
 
+* The iPod mini 2G in 3D
+
+Target 203, "Android mini 3D" (configure --target=androidsim3d, in a
+build dir of its own), makes a separate app, Rockbox 3D (org.rockbox.sim3d),
+with just the iPod mini 2G, drawn as a 3D model with OpenGL ES 3
+(firmware/target/hosted/sdl/window-3d.c): the screen shows on its display,
+the wheel and buttons work where they are, the hold switch slides, and
+dragging turns it, pinching zooms. Settings > Android > Gyroscope keeps it
+still as the phone turns, and the dock cable slides in when the phone
+charges.
+
+The model isn't in the source: build-apk.sh makes it with
+uisimulator/skins/ipodmini2g-3d.py (numpy and Pillow) from these zips in
+the source dir, or where MINI3D_MODEL, MINI3D_OBJ and MINI3D_CABLE say:
+
+    945950-gltf-extended.gltf.zip      the iPod's materials and textures
+    iPod_Mini_Blue_obj.zip             its shape, subdivided as its author did
+    30-pin-connector-to-usb-cable-1-meter-3-feet-1.snapshot.5.zip
+                                       the cable, which can be left out
+
+Without the first two, the app has the 2D skin.
+
 The simulator's output is written to stdout.txt in each model's dir in the
 app's private files:
 

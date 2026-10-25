@@ -60,7 +60,46 @@ echo "Native libraries"
 # comes first and is the default; the others are configured and built in
 # models/<model> here.
 PRIMARY=$(makevar MODELNAME)
-MODELS="$PRIMARY $(echo ${ANDROID_SIM_MODELS:-ipodvideo ipodmini2g sansaclipzip gigabeatfx} | tr ' ' '\n' | grep -vx "$PRIMARY" | tr '\n' ' ')"
+# Target 203 is the iPod mini 2G in 3D, an app of its own, with just it
+SIM_3D=$(makevar ANDROID_SIM_3D)
+if [ "$SIM_3D" = 1 ]; then
+    DEFAULT_MODELS=ipodmini2g
+else
+    DEFAULT_MODELS="ipodvideo ipodmini2g sansaclipzip gigabeatfx"
+fi
+MODELS="$PRIMARY $(echo ${ANDROID_SIM_MODELS:-$DEFAULT_MODELS} | tr ' ' '\n' | grep -vx "$PRIMARY" | tr '\n' ' ')"
+
+# The iPod mini 2G as a 3D model (window-3d.c), made by ipodmini2g-3d.py
+# from the model's glTF (materials) and OBJ (shape) in MINI3D_MODEL and
+# MINI3D_OBJ; without them, it's the 2D skin
+MINI3D_MODEL=${MINI3D_MODEL:-$ROOTDIR/945950-gltf-extended.gltf.zip}
+MINI3D_OBJ=${MINI3D_OBJ:-$ROOTDIR/iPod_Mini_Blue_obj.zip}
+# and the dock cable that slides in when the phone charges, if it's there
+MINI3D_CABLE=${MINI3D_CABLE:-$ROOTDIR/30-pin-connector-to-usb-cable-1-meter-3-feet-1.snapshot.5.zip}
+MINI3D=$BUILDDIR/mini3d
+if [ "$SIM_3D" = 1 ] && [ -f "$MINI3D_MODEL" ] && [ -f "$MINI3D_OBJ" ] && { [ ! -f "$MINI3D/model.bin" ] ||
+        [ "$MINI3D_MODEL" -nt "$MINI3D/model.bin" ] ||
+        [ "$MINI3D_OBJ" -nt "$MINI3D/model.bin" ] ||
+        { [ -f "$MINI3D_CABLE" ] && [ "$MINI3D_CABLE" -nt "$MINI3D/model.bin" ]; } ||
+        [ "$ROOTDIR/uisimulator/skins/ipodmini2g-3d.py" -nt "$MINI3D/model.bin" ]; }; then
+    echo "3D model"
+    rm -rf "$MINI3D"
+    python3 "$ROOTDIR/uisimulator/skins/ipodmini2g-3d.py" "$MINI3D_MODEL" "$MINI3D_OBJ" "$MINI3D" \
+        $([ -f "$MINI3D_CABLE" ] && echo "$MINI3D_CABLE")
+fi
+
+# The 3D app is separate from the 2D simulator's, so both can be installed
+MANIFEST=$SRCDIR/AndroidManifest.xml
+if [ "$SIM_3D" = 1 ]; then
+    PACKAGE=${ANDROID_SIM_PACKAGE:-org.rockbox.sim3d}
+    # its name, and GL ES 3 for window-3d.c
+    MANIFEST=$BUILDDIR/AndroidManifest-3d.xml
+    sed -e 's/android:label="Rockbox"/android:label="Rockbox 3D"/' \
+        -e 's/android:glEsVersion="0x00020000"/android:glEsVersion="0x00030000"/' \
+        "$SRCDIR/AndroidManifest.xml" > "$MANIFEST"
+else
+    PACKAGE=${ANDROID_SIM_PACKAGE:-org.rockbox.sim}
+fi
 
 model_title() {
     case $1 in
@@ -108,6 +147,9 @@ pack_model() {
     if [ -f "$ROOTDIR/uisimulator/skins/$model.svg" ]; then
         cp "$ROOTDIR/uisimulator/skins/$model.svg" "$dest/skin.svg"
     fi
+    if [ "$SIM_3D" = 1 ] && [ "$model" = ipodmini2g ] && [ -f "$MINI3D/model.bin" ]; then
+        cp -r "$MINI3D" "$dest/mini3d"
+    fi
     (cd "$dest/simdisk" && find .rockbox -name '*.rock' -o -name '*.codec' -o -name '*.ovl') |
     while read -r f; do
         lib=lib${model}_$(echo "${f#.rockbox/}" | tr '/.' '__').so
@@ -144,7 +186,7 @@ for d in ldpi mdpi hdpi; do
     "$BUILD_TOOLS/aapt2" compile -o "$OUT/res" "$ROOTDIR/android/res/drawable-$d/launcher.png"
 done
 "$BUILD_TOOLS/aapt2" link -o "$OUT/unaligned.apk" -I "$ANDROID_JAR" \
-    --manifest "$SRCDIR/AndroidManifest.xml" \
+    --manifest "$MANIFEST" --rename-manifest-package "$PACKAGE" \
     --min-sdk-version 26 --target-sdk-version 35 --debug-mode \
     -A "$OUT/assets" "$OUT"/res/*.flat
 (cd "$OUT" && zip -qr unaligned.apk classes.dex lib)

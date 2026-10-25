@@ -1552,6 +1552,14 @@ Lyre prototype 1 */
 #define HAVE_SIM_RAINBOW
 #endif
 
+/* The iPod mini 2G is drawn as a 3D model on Android, target 203, see
+   window-3d.c; Settings > Android > Gyroscope keeps it still as the phone
+   turns */
+#if defined(HAVE_SIM_ANDROID) && defined(IPOD_MINI2G) && defined(SIM_ANDROID_3D)
+#define HAVE_SIM_3D
+#define HAVE_SIM_GYRO
+#endif
+
 /* The contrast setting shades the simulated LCD, on the iPod mini 2G */
 #if defined(HAVE_SIM_ANDROID) && defined(HAVE_LCD_CONTRAST) && \
     LCD_DEPTH == 2

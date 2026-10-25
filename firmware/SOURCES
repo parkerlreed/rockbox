@@ -84,6 +84,9 @@ target/hosted/sdl/lcd-sdl.c
 #if !defined(RG_NANO) || defined(SIMULATOR)
 target/hosted/sdl/window-sdl.c
 #endif
+#ifdef HAVE_SIM_3D
+target/hosted/sdl/window-3d.c
+#endif
 target/hosted/sdl/system-sdl.c
 #ifdef HAVE_SDL_THREADS
 target/hosted/sdl/filesystem-sdl.c

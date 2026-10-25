@@ -139,8 +139,9 @@ void sdl_gui_update(SDL_Surface *surface, int x_start, int y_start, int width,
     sdl_lock_lcd_surface();
     SDL_BlitSurface(surface, &src, sim_lcd_surface, NULL);
     sdl_unlock_lcd_surface();
-    SDL_UpdateTexture(gui_texture, &dest,
-                      sim_lcd_surface->pixels, sim_lcd_surface->pitch);
+    if (gui_texture) /* none with the 3D device, which takes sim_lcd_surface */
+        SDL_UpdateTexture(gui_texture, &dest,
+                          sim_lcd_surface->pixels, sim_lcd_surface->pitch);
 
     if (!sdl_window_adjust()) /* already calls sdl_window_render itself */
         sdl_window_render();

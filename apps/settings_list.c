@@ -2370,6 +2370,10 @@ const struct settings_list settings[] = {
     OFFON_SETTING(0, sim_rainbow, LANG_ANDROID_RAINBOW, false, "rainbow",
                   sim_rainbow_set),
 #endif
+#ifdef HAVE_SIM_GYRO
+    OFFON_SETTING(0, sim_gyro, LANG_ANDROID_GYROSCOPE, false, "gyroscope",
+                  sim_gyro_set),
+#endif
     /* keyclick */
 #ifdef HAVE_HARDWARE_CLICK
     CHOICE_SETTING(0, keyclick, LANG_KEYCLICK_SOFTWARE, 0,
