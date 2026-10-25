@@ -256,9 +256,16 @@ void sim_backlight(int value)
 
 SDL_Color sim_lcd_background(void)
 {
-#if LCD_DEPTH <= 8
+#ifdef HAVE_SIM_CONTRAST
+    /* at the default contrast: contrast is the LCD's, not the glass round
+       it */
+    SDL_Color c = sim_lcd_lit ? lcd_bl_color_bright : lcd_color_bright;
+    c.a = 255;
+#elif LCD_DEPTH <= 8
     SDL_Color c = lcd_surface->format->palette->colors[NUM_SHADES - 1];
     c.a = 255;
+#endif
+#if LCD_DEPTH <= 8
 #if LCD_DEPTH < 8
     /* the window's texture is RGB565 (see rebuild_gui_texture()) */
     c.r = (c.r & 0xf8) | (c.r >> 5);
