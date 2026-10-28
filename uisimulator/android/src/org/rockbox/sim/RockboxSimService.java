@@ -36,14 +36,21 @@ public class RockboxSimService extends Service
     @Override
     public int onStartCommand(Intent intent, int flags, int startId)
     {
-        NotificationManager nm = getSystemService(NotificationManager.class);
-        nm.createNotificationChannel(new NotificationChannel(CHANNEL,
-            "Running in the background", NotificationManager.IMPORTANCE_LOW));
+        Notification.Builder builder;
+        if (Build.VERSION.SDK_INT >= 26) {
+            NotificationManager nm = getSystemService(NotificationManager.class);
+            nm.createNotificationChannel(new NotificationChannel(CHANNEL,
+                "Running in the background", NotificationManager.IMPORTANCE_LOW));
+            builder = new Notification.Builder(this, CHANNEL);
+        } else {
+            builder = new Notification.Builder(this)
+                .setPriority(Notification.PRIORITY_LOW);
+        }
 
         PendingIntent open = PendingIntent.getActivity(this, 0,
             new Intent(this, RockboxSimActivity.class),
             PendingIntent.FLAG_IMMUTABLE);
-        Notification notification = new Notification.Builder(this, CHANNEL)
+        Notification notification = builder
             .setSmallIcon(getApplicationInfo().icon)
             .setContentTitle("Rockbox")
             .setContentText("Running in the background")

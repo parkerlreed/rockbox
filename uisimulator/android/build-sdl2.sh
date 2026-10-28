@@ -25,7 +25,7 @@ PLATFORM=$2
 set -- # from here, extra CMake options
 : "${ANDROID_NDK_PATH:?set ANDROID_NDK_PATH}"
 
-if [ "$(cat "$DEST/prefix/.version" 2>/dev/null)" = "$SDL_VERSION" ]; then
+if [ "$(cat "$DEST/prefix/.version" 2>/dev/null)" = "$SDL_VERSION $PLATFORM" ]; then
     exit 0
 fi
 
@@ -76,4 +76,4 @@ tar xzf "$TARBALL" -C src --strip-components=1
 "$CMAKE" --install build >> build.log 2>&1 ||
     { echo "ERROR: building SDL2 failed, see $DEST/build.log"; exit 1; }
 
-echo "$SDL_VERSION" > prefix/.version
+echo "$SDL_VERSION $PLATFORM" > prefix/.version

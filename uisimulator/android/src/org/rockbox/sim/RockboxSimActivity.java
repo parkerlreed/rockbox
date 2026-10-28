@@ -91,7 +91,10 @@ public class RockboxSimActivity extends SDLActivity
                 Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
             requestPermissions(new String[] {
                 Manifest.permission.POST_NOTIFICATIONS }, 0);
-        startForegroundService(new Intent(this, RockboxSimService.class));
+        if (Build.VERSION.SDK_INT >= 26)
+            startForegroundService(new Intent(this, RockboxSimService.class));
+        else
+            startService(new Intent(this, RockboxSimService.class));
     }
 
     @Override
@@ -119,6 +122,10 @@ public class RockboxSimActivity extends SDLActivity
         if (vibrator == null)
             return;
         int ms = kind == 1 ? 20 : 10;
+        if (Build.VERSION.SDK_INT < 26) {
+            vibrator.vibrate(ms);
+            return;
+        }
         int amplitude = vibrator.hasAmplitudeControl()
             ? Math.round(255 * (0.25f + strength * 0.25f)) /* weak half, strong full */
             : VibrationEffect.DEFAULT_AMPLITUDE;

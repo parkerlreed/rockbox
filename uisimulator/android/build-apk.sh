@@ -62,6 +62,9 @@ echo "Native libraries"
 PRIMARY=$(makevar MODELNAME)
 # Target 203 is the iPod mini 2G in 3D, an app of its own, with just it
 SIM_3D=$(makevar ANDROID_SIM_3D)
+# The oldest Android the native code was built for (configure)
+MIN_SDK=$(makevar ANDROID_PLATFORM_VERSION)
+MIN_SDK=${MIN_SDK:-23}
 if [ "$SIM_3D" = 1 ]; then
     DEFAULT_MODELS=ipodmini2g
 else
@@ -178,7 +181,7 @@ fi
 echo "Java"
 javac -nowarn --release 11 -Xlint:-options -classpath "$ANDROID_JAR" -d "$OUT/classes" \
     $(find "$SDL2/src/android-project/app/src/main/java" "$SRCDIR/src" -name '*.java')
-"$BUILD_TOOLS/d8" --min-api 26 --lib "$ANDROID_JAR" --output "$OUT" \
+"$BUILD_TOOLS/d8" --min-api "$MIN_SDK" --lib "$ANDROID_JAR" --output "$OUT" \
     $(find "$OUT/classes" -name '*.class')
 
 echo "Resources"
@@ -187,7 +190,7 @@ for d in ldpi mdpi hdpi; do
 done
 "$BUILD_TOOLS/aapt2" link -o "$OUT/unaligned.apk" -I "$ANDROID_JAR" \
     --manifest "$MANIFEST" --rename-manifest-package "$PACKAGE" \
-    --min-sdk-version 26 --target-sdk-version 35 --debug-mode \
+    --min-sdk-version "$MIN_SDK" --target-sdk-version 35 --debug-mode \
     -A "$OUT/assets" "$OUT"/res/*.flat
 (cd "$OUT" && zip -qr unaligned.apk classes.dex lib)
 

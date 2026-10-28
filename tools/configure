@@ -348,7 +348,7 @@ simcc () {
    echo "Android simulator build"
    echo "Using Android SDK $ANDROID_SDK_PATH"
    echo "Using Android NDK $ANDROID_NDK_PATH"
-   ANDROID_PLATFORM_VERSION=26
+   ANDROID_PLATFORM_VERSION=23 # Android 6.0
    # SDL2 is downloaded and built into the build dir
    "$rootdir/uisimulator/android/build-sdl2.sh" "$pwd/sdl2-android" \
        $ANDROID_PLATFORM_VERSION || exit 1
