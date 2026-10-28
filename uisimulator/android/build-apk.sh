@@ -27,7 +27,9 @@ ANDROID_NDK_PATH=${ANDROID_NDK_PATH:-$(makevar ANDROID_NDK_PATH)}
 : "${ANDROID_SDK_PATH:?set ANDROID_SDK_PATH, or re-run configure}"
 : "${ANDROID_NDK_PATH:?set ANDROID_NDK_PATH, or re-run configure}"
 OUT=$BUILDDIR/apk
-ABI=arm64-v8a
+# 64-bit ARM unless configure was run with ANDROID_ABI=armeabi-v7a
+ABI=$(makevar ANDROID_ABI)
+ABI=${ABI:-arm64-v8a}
 PLATFORM=android-35
 
 ANDROID_JAR=$ANDROID_SDK_PATH/platforms/$PLATFORM/android.jar
@@ -121,7 +123,7 @@ build_model() {
         echo "  configuring $1"
         ln -sfn "$SDL2" "$dir/sdl2-android" # reuse this dir's SDL2
         (cd "$dir" && ANDROID_SDK_PATH="$ANDROID_SDK_PATH" \
-            ANDROID_NDK_PATH="$ANDROID_NDK_PATH" \
+            ANDROID_NDK_PATH="$ANDROID_NDK_PATH" ANDROID_ABI="$ABI" \
             "$ROOTDIR/tools/configure" --target="$1" --type=R) > "$dir/configure.log" 2>&1 ||
             { echo "configuring $1 failed, see $dir/configure.log"; exit 1; }
     fi

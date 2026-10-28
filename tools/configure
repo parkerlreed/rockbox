@@ -349,11 +349,20 @@ simcc () {
    echo "Using Android SDK $ANDROID_SDK_PATH"
    echo "Using Android NDK $ANDROID_NDK_PATH"
    ANDROID_PLATFORM_VERSION=23 # Android 6.0
+   # 64-bit ARM, unless ANDROID_ABI=armeabi-v7a asks for 32-bit
+   ANDROID_ABI=${ANDROID_ABI:-arm64-v8a}
+   case "$ANDROID_ABI" in
+     arm64-v8a)   android_triple=aarch64-linux-android ;;
+     armeabi-v7a) android_triple=armv7a-linux-androideabi ;;
+     *) echo "ERROR: ANDROID_ABI is arm64-v8a or armeabi-v7a, not $ANDROID_ABI"
+        exit 1 ;;
+   esac
+   echo "Building for $ANDROID_ABI"
    # SDL2 is downloaded and built into the build dir
    "$rootdir/uisimulator/android/build-sdl2.sh" "$pwd/sdl2-android" \
-       $ANDROID_PLATFORM_VERSION || exit 1
+       $ANDROID_PLATFORM_VERSION $ANDROID_ABI || exit 1
    ndkbin="$ANDROID_NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin"
-   CC="$ndkbin/aarch64-linux-android$ANDROID_PLATFORM_VERSION-clang"
+   CC="$ndkbin/$android_triple$ANDROID_PLATFORM_VERSION-clang"
    CPP="$CC -E"
    RANLIB="$ndkbin/llvm-ranlib"
    LD="$ndkbin/ld.lld"
@@ -5144,6 +5153,7 @@ export ANDROID_SDK_PATH=${ANDROID_SDK_PATH}
 export ANDROID_SIM_3D=${ARG_ANDROID_SIM_3D}
 export FUNKEY_SDK_PATH=${FUNKEY_SDK_PATH}
 export ANDROID_PLATFORM_VERSION=${ANDROID_PLATFORM_VERSION}
+export ANDROID_ABI=${ANDROID_ABI}
 export TOOLSET=${toolset}
 export PIPER_MODEL_DIR=${PIPER_MODEL_DIR}
 export NO_UTF8PROC=${no_utf8proc}

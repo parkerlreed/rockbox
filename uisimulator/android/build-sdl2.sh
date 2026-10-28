@@ -9,7 +9,8 @@
 # Downloads SDL2 and builds it for the Android simulator.
 # Called by configure --android-sim; see uisimulator/android/README.
 #
-# Usage: build-sdl2.sh DEST ANDROID_PLATFORM_VERSION
+# Usage: build-sdl2.sh DEST ANDROID_PLATFORM_VERSION [ABI]
+# ABI is arm64-v8a, the default, or armeabi-v7a.
 # Installs to DEST/prefix and keeps the source (with SDL's Java files) in
 # DEST/src. Does nothing if DEST already holds this version.
 
@@ -18,14 +19,13 @@ set -e
 SDL_VERSION=2.32.10
 SDL_SHA256=5f5993c530f084535c65a6879e9b26ad441169b3e25d789d83287040a9ca5165
 SDL_URL=https://github.com/libsdl-org/SDL/releases/download/release-$SDL_VERSION/SDL2-$SDL_VERSION.tar.gz
-ABI=arm64-v8a
-
 DEST=$1
 PLATFORM=$2
+ABI=${3:-arm64-v8a}
 set -- # from here, extra CMake options
 : "${ANDROID_NDK_PATH:?set ANDROID_NDK_PATH}"
 
-if [ "$(cat "$DEST/prefix/.version" 2>/dev/null)" = "$SDL_VERSION $PLATFORM" ]; then
+if [ "$(cat "$DEST/prefix/.version" 2>/dev/null)" = "$SDL_VERSION $PLATFORM $ABI" ]; then
     exit 0
 fi
 
@@ -48,7 +48,7 @@ elif [ -x "$NINJA" ]; then
     set -- -DCMAKE_MAKE_PROGRAM="$NINJA"
 fi
 
-echo "Building SDL2 $SDL_VERSION for Android"
+echo "Building SDL2 $SDL_VERSION for Android, $ABI"
 mkdir -p "$DEST"
 cd "$DEST"
 
@@ -76,4 +76,4 @@ tar xzf "$TARBALL" -C src --strip-components=1
 "$CMAKE" --install build >> build.log 2>&1 ||
     { echo "ERROR: building SDL2 failed, see $DEST/build.log"; exit 1; }
 
-echo "$SDL_VERSION $PLATFORM" > prefix/.version
+echo "$SDL_VERSION $PLATFORM $ABI" > prefix/.version

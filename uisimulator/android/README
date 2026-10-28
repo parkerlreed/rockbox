@@ -67,6 +67,13 @@ Then:
     ../uisimulator/android/build-apk.sh
     adb install -r rockbox-sim.apk
 
+The app is for 64-bit ARM (arm64-v8a) phones, running Android 6.0 or
+later. For 32-bit ones (armeabi-v7a), configure a build dir of its own
+with ANDROID_ABI set; the rest is the same:
+
+    mkdir build-android-armv7 && cd build-android-armv7
+    ANDROID_ABI=armeabi-v7a ../tools/configure --target=androidsim
+
 * The iPod mini 2G in 3D
 
 Target 203, "Android mini 3D" (configure --target=androidsim3d, in a
