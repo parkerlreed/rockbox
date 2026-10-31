@@ -904,7 +904,10 @@ bool sdl_window_adjust(void)
 void sdl_window_adjustment_needed(bool destroy_texture)
 {
     window_adjustment_needed = true;
-    new_gui_texture_needed = destroy_texture;
+    /* never cancels one still pending: the first, which makes the texture,
+       can follow a resize, as when Android hides the bars at start */
+    if (destroy_texture)
+        new_gui_texture_needed = true;
 
     /* For MacOS and Windows, we're on a main or
     display thread already, and can immediately
