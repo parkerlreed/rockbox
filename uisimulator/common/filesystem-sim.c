@@ -41,6 +41,16 @@
 
 extern const char *sim_root_dir;
 
+#if defined(__ANDROID__) && defined(HAVE_MULTIVOLUME)
+/* The phone's SD card, drive 1 (config/sim.h); empty without one */
+static char sim_card_dir[MAX_PATH];
+
+void sim_set_card_dir(const char *dir)
+{
+    strlcpy(sim_card_dir, dir ? dir : "", sizeof (sim_card_dir));
+}
+#endif
+
 /* Windows (and potentially other OSes) distinguish binary and text files.
  * Define a dummy for the others. */
 #ifndef O_BINARY
@@ -245,6 +255,12 @@ int sim_get_os_path(char *buffer, const char *path, size_t bufsize)
     DEBUGF("PPP (pre): \"%s\"\n", path);
 #endif
 
+#if defined(__ANDROID__) && defined(HAVE_MULTIVOLUME)
+    /* where the path starts over on a change of volume */
+    char *const buffer_start = buffer;
+    const size_t bufsize_start = bufsize;
+#endif
+
     /* Prepend sim root */
     size_t size = strlcpy(buffer, sim_root_dir, bufsize);
     if (size >= bufsize)
@@ -346,6 +362,19 @@ int sim_get_os_path(char *buffer, const char *path, size_t bufsize)
                 if (volume == 0)
                     continue;
 
+            #ifdef __ANDROID__
+                /* the card is elsewhere, not next to the sim root */
+                buffer = buffer_start;
+                bufsize = bufsize_start;
+                size = strlcpy(buffer, sim_card_dir, bufsize);
+                if (size >= bufsize)
+                {
+                    errno = ENAMETOOLONG;
+                    return -1;
+                }
+                ADVBUF(size);
+                continue;
+            #endif
                 p = extbuf;
                 len = snprintf(extbuf, sizeof (extbuf), SIMEXT_FMT, volume);
             }
@@ -374,6 +403,19 @@ int sim_get_os_path(char *buffer, const char *path, size_t bufsize)
                     continue;
                 }
 
+            #ifdef __ANDROID__
+                /* Going up from the card's root back to the sim root */
+                buffer = buffer_start;
+                bufsize = bufsize_start;
+                size = strlcpy(buffer, sim_root_dir, bufsize);
+                if (size >= bufsize)
+                {
+                    errno = ENAMETOOLONG;
+                    return -1;
+                }
+                ADVBUF(size);
+                continue;
+            #endif
                 /* Going up from a volume root and back down to the sys root */
                 if (dirbase_len == 0)
                 {

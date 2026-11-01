@@ -125,6 +125,11 @@ void init_volume_names(void)
         if (type < 0 || type > STORAGE_NUM_TYPES)
             type = STORAGE_NUM_TYPES;
         voldec = storage_dec_names[storage_dec_indexes[type]];
+#if defined(SIMULATOR) && defined(__ANDROID__)
+        /* the phone's SD card, whatever the model's own storage */
+        if (volume_drive(volume) == 1)
+            voldec = "microSD";
+#endif
         snprintf(buffer, VOL_MAX_LEN + 1, "%c%s%d%c",
                 VOL_START_TOK, voldec, volume, VOL_END_TOK);
         DEBUGF("vol<%d> = %s ", volume, buffer);

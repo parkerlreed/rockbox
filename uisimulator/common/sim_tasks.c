@@ -240,6 +240,14 @@ void sim_trigger_external(bool inserted)
 
     DEBUGF("Ext %s\n", inserted ? "inserted":"removed");
 }
+
+#ifdef __ANDROID__
+/* The phone's SD card is in at start, before anything's to be told */
+void sim_external_at_start(bool inserted)
+{
+    is_ext_inserted = inserted;
+}
+#endif
 #endif
 
 bool hostfs_present(int drive)

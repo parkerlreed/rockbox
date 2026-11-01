@@ -29,6 +29,10 @@ void sim_trigger_screendump(void);
 void sim_trigger_usb(bool inserted);
 #ifdef HAVE_HOTSWAP
 void sim_trigger_external(bool inserted);
+#ifdef __ANDROID__
+void sim_external_at_start(bool inserted);
+void sim_set_card_dir(const char *dir); /* filesystem-sim.c */
+#endif
 #endif
 void sim_trigger_hp(bool inserted);
 void sim_trigger_lo(bool inserted);

@@ -47,6 +47,9 @@
 #include <signal.h>
 #include "instant_play.h"
 #endif
+#if defined(HAVE_SIM_ANDROID) && defined(HAVE_HOTSWAP)
+#include "sim_tasks.h"
+#endif
 
 #define SIMULATOR_DEFAULT_ROOT "simdisk"
 
@@ -209,7 +212,14 @@ void sim_do_exit()
 #endif
 
     SDL_Quit();
+#ifdef __ANDROID__
+    /* exit() runs the atexit handlers of the whole app process, some of
+       the system's crashing by now on some phones (Samsung, Android 13);
+       everything of Rockbox's is saved and closed already */
+    _exit(EXIT_SUCCESS);
+#else
     exit(EXIT_SUCCESS);
+#endif
 }
 
 uintptr_t *stackbegin;
@@ -393,6 +403,19 @@ void sys_handle_argv(int argc, char *argv[])
                     printf("Root directory: %s\n", sim_root_dir);
                 }
             }
+#if defined(HAVE_SIM_ANDROID) && defined(HAVE_HOTSWAP)
+            else if (!strcmp("--card", argv[x]))
+            {
+                /* the phone's SD card, in at start (filesystem-sim.c) */
+                x++;
+                if (x < argc)
+                {
+                    sim_set_card_dir(argv[x]);
+                    sim_external_at_start(true);
+                    printf("SD card: %s\n", argv[x]);
+                }
+            }
+#endif
             else if (!strcmp("--mapping", argv[x]))
             {
                     mapping = true;

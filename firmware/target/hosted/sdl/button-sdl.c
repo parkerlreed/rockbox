@@ -259,6 +259,56 @@ Java_org_rockbox_sim_RockboxSimActivity_nativeShutDown(JNIEnv *env, jclass cls)
     (void)cls;
     sys_poweroff();
 }
+
+#ifdef HAVE_HOTSWAP
+/* The phone's SD card, drive 1, went in or out: the event thread tells
+   Rockbox, as with the keys. The event carries its root, or NULL. */
+static Uint32 card_event_type = (Uint32)-1;
+
+JNIEXPORT void JNICALL
+Java_org_rockbox_sim_RockboxSimActivity_nativeSetCard(JNIEnv *env, jclass cls,
+                                                      jstring dir)
+{
+    (void)cls;
+    if (!SDL_WasInit(SDL_INIT_EVENTS))
+        return; /* not started yet; the card came with --card */
+    if (card_event_type == (Uint32)-1)
+        card_event_type = SDL_RegisterEvents(1);
+
+    char *root = NULL;
+    if (dir)
+    {
+        const char *s = (*env)->GetStringUTFChars(env, dir, NULL);
+        root = s ? SDL_strdup(s) : NULL;
+        if (s)
+            (*env)->ReleaseStringUTFChars(env, dir, s);
+    }
+
+    SDL_Event ev;
+    SDL_zero(ev);
+    ev.type = card_event_type;
+    ev.user.data1 = root;
+    ev.user.data2 = &card_event_type; /* tells it from power_off()'s */
+    if (SDL_PushEvent(&ev) <= 0)
+        SDL_free(root);
+}
+
+static bool card_event(SDL_Event *event)
+{
+    if (event->type != card_event_type ||
+        event->user.data2 != &card_event_type)
+        return false;
+
+    char *root = event->user.data1;
+    if (storage_present(1))
+        sim_trigger_external(false); /* also when another replaces it */
+    sim_set_card_dir(root);
+    if (root)
+        sim_trigger_external(true);
+    SDL_free(root);
+    return true;
+}
+#endif /* HAVE_HOTSWAP */
 #endif /* HAVE_SIM_ANDROID */
 
 #ifdef HAVE_SIM_TOUCHWHEEL
@@ -784,6 +834,10 @@ static bool event_handler(SDL_Event *event)
     SDLKey ev_key;
 #endif
 
+#if defined(HAVE_SIM_ANDROID) && defined(HAVE_HOTSWAP)
+    if (card_event(event))
+        return false;
+#endif
 #ifdef HAVE_SIM_3D
     if (sim3d_active() && touch_3d(event))
         return false;

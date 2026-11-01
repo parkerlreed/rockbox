@@ -111,3 +111,15 @@
 #define HAVE_SDL_AUDIO
 
 #define _ISOC99_SOURCE 1
+
+#ifdef __ANDROID__
+/* The phone's SD card is a second drive, <microSD1>, on every model
+   (filesystem-sim.c) */
+#ifndef HAVE_MULTIDRIVE
+#define HAVE_MULTIDRIVE
+#define NUM_DRIVES 2
+#endif
+#ifndef HAVE_HOTSWAP
+#define HAVE_HOTSWAP
+#endif
+#endif

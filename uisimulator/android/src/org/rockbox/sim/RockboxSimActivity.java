@@ -19,7 +19,10 @@
 package org.rockbox.sim;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -65,6 +68,9 @@ public class RockboxSimActivity extends SDLActivity
     private final List<String> models = new ArrayList<>();
     private final List<String> titles = new ArrayList<>();
     private String model;
+    /* the root of the phone's SD card, Rockbox's <microSD1>, or null */
+    private String card;
+    private BroadcastReceiver cardReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -76,6 +82,7 @@ public class RockboxSimActivity extends SDLActivity
         if (!models.contains(model))
             model = models.get(0);
         moveOldFiles();
+        card = findCard(null);
         try
         {
             unpackFiles();
@@ -95,11 +102,14 @@ public class RockboxSimActivity extends SDLActivity
             startForegroundService(new Intent(this, RockboxSimService.class));
         else
             startService(new Intent(this, RockboxSimService.class));
+        watchCard();
     }
 
     @Override
     protected void onDestroy()
     {
+        if (cardReceiver != null)
+            unregisterReceiver(cardReceiver);
         SimCamera.stop();
         stopService(new Intent(this, RockboxSimService.class));
         super.onDestroy();
@@ -209,13 +219,82 @@ public class RockboxSimActivity extends SDLActivity
         try
         {
             getAssets().open("debug_buttons").close();
-            return new String[] { "--root", root.getPath(), "--debugbuttons" };
+            return withCard(new String[] { "--root", root.getPath(), "--debugbuttons" });
         }
         catch (IOException e)
         {
-            return new String[] { "--root", root.getPath() };
+            return withCard(new String[] { "--root", root.getPath() });
         }
     }
+
+    private String[] withCard(String[] args)
+    {
+        if (card == null)
+            return args;
+        String[] all = java.util.Arrays.copyOf(args, args.length + 2);
+        all[args.length] = "--card";
+        all[args.length + 1] = card;
+        return all;
+    }
+
+    /* The root of a mounted removable SD card, other than gone (one being
+     * removed), or null. getExternalFilesDirs() has a dir on each mounted
+     * volume, in Android/data/<package> there. */
+    private String findCard(String gone)
+    {
+        for (File f : getExternalFilesDirs(null))
+        {
+            if (f == null)
+                continue;
+            try
+            {
+                if (!Environment.isExternalStorageRemovable(f))
+                    continue;
+            }
+            catch (IllegalArgumentException e)
+            {
+                continue;
+            }
+            String path = f.getPath();
+            int i = path.indexOf("/Android/data/");
+            if (i > 0 && !path.substring(0, i).equals(gone))
+                return path.substring(0, i);
+        }
+        return null;
+    }
+
+    /* Tells the simulator when the card goes in or out */
+    private void watchCard()
+    {
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_MEDIA_MOUNTED);
+        filter.addAction(Intent.ACTION_MEDIA_EJECT);
+        filter.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
+        filter.addAction(Intent.ACTION_MEDIA_REMOVED);
+        filter.addAction(Intent.ACTION_MEDIA_BAD_REMOVAL);
+        filter.addDataScheme("file");
+        cardReceiver = new BroadcastReceiver()
+        {
+            @Override
+            public void onReceive(Context context, Intent intent)
+            {
+                /* on the way out, it may still be listed */
+                String gone = Intent.ACTION_MEDIA_MOUNTED.equals(intent.getAction())
+                    || intent.getData() == null ? null : intent.getData().getPath();
+                String now = findCard(gone);
+                if (now == null ? card == null : now.equals(card))
+                    return;
+                card = now;
+                nativeSetCard(card);
+            }
+        };
+        if (Build.VERSION.SDK_INT >= 33)
+            registerReceiver(cardReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        else
+            registerReceiver(cardReceiver, filter);
+    }
+
+    static native void nativeSetCard(String root);
 
     private SharedPreferences prefs()
     {
